@@ -11,7 +11,7 @@ from alembic import context
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.database import Base
-from app.models import User, Event, Incident, Task, TelemetryLog
+from app.models import User, Event, Incident, Task, Telemetry, Role, Prediction, Recommendation, Notification, CrowdMetric, Transport, Parking, Energy, Carbon, ReplayLog
 from app.config import settings
 
 # this is the Alembic Config object, which provides access to the values within the .ini file in use.
@@ -27,7 +27,7 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 
-def run_migrations_offline() -> void:
+def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(

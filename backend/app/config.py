@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SECRET_KEY: str = "super_secret_stadium_key"
     
-    # PostgreSQL Configuration
-    DATABASE_URL: str = "postgresql://postgres:secret_password@localhost:5432/arenamind"
+    # Database Configuration (SQLite default for local development)
+    DATABASE_URL: str = "sqlite:///./arenamind.db"
     
     # Firebase Configuration
     FIREBASE_DATABASE_URL: Optional[str] = None

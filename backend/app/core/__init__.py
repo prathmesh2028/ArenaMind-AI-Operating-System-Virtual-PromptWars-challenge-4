@@ -1,0 +1,1 @@
+"""ArenaMind AI — Core package."""

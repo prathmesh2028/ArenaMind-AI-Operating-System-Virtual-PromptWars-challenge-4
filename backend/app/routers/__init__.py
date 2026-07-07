@@ -1,1 +1,1 @@
-# ArenaMind Routers package
+"""ArenaMind AI — Routers package."""
