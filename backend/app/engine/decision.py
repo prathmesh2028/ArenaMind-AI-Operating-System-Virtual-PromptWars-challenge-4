@@ -21,7 +21,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
@@ -70,45 +70,131 @@ class DecisionEngine:
         async with self._lock:
             p = event.payload
             inc_id = p.get("incident_id")
-            sector = p.get("sector")
-            priority = p.get("priority")
+            sector = p.get("sector") or "Unknown"
+            priority = p.get("priority") or "MEDIUM"
+            inc_type = (p.get("incident_type") or "").upper()
+            title_raw = p.get("title") or "Critical Alert"
+            title = title_raw.lower()
+            desc = (p.get("description") or "").lower()
             density = p.get("density", 0.0)
-            
+
             db: Session = SessionLocal()
             try:
-                # Rule: Security incident raised in a gate/sector -> CLOSE_GATES
-                if event.topic == "incident.raised" and priority in ("CRITICAL", "HIGH"):
-                    # Check cache to avoid duplicate closing commands
-                    cache_key = f"close_gate_{sector}"
-                    now_ts = asyncio.get_event_loop().time()
-                    if cache_key in self._decision_cache and (now_ts - self._decision_cache[cache_key]) < 60.0:
-                        return
-                    
-                    self._decision_cache[cache_key] = now_ts
-                    
-                    # Create Decision
-                    decision_text = f"Emergency lockdown: immediately close and lock all turnstile scanners at {sector}."
-                    reason = f"Critical security alert raised: incident {inc_id[:8]} reported at {sector}."
-                    impact = "Prevent unauthorized access and isolate perimeter zone containment."
-                    
-                    db_decision = Decision(
+                # Deterministic Mitigation Matrix
+                decision_text = ""
+                reason = ""
+                impact = ""
+                responsible_team = ""
+                eta = ""
+                action_type = ""
+
+                # 1. Security Incidents
+                if (
+                    inc_type == "SECURITY"
+                    or any(k in title or k in desc for k in ["security", "perimeter", "unauthorized", "disruptive", "breach", "altercation", "intruder", "lockdown", "fight", "weapon"])
+                ):
+                    action_type = "CLOSE_GATES"
+                    responsible_team = "SECURITY"
+                    decision_text = f"Emergency lockdown: immediately close and lock all turnstile scanners and access gates in {sector}."
+                    reason = f"Security incident '{title_raw}' reported in {sector}."
+                    impact = "Prevent unauthorized access, contain perimeter zone, and secure the zone."
+                    eta = "1 minute"
+
+                # 2. Medical Incidents
+                elif (
+                    inc_type == "MEDICAL"
+                    or any(k in title or k in desc for k in ["medical", "cardiac", "heat", "exhaustion", "fainting", "collapse", "injured", "injury", "ambulance", "heat exhaustion"])
+                ):
+                    action_type = "MEDICAL_ESCALATION"
+                    responsible_team = "MEDICAL"
+                    decision_text = f"Deploy emergency medical responders with trauma kits and triage equipment to {sector}."
+                    reason = f"Medical emergency '{title_raw}' reported in {sector}."
+                    impact = "Provide rapid first-aid stabilization and coordinate emergency medical transport."
+                    eta = "2 minutes"
+
+                # 3. Gate Malfunction / Turnstile Delay
+                elif (
+                    any(k in title or k in desc for k in ["gate", "turnstile", "scanner", "malfunction", "turnstile failure"])
+                ):
+                    action_type = "OPEN_GATES"
+                    responsible_team = "OPERATIONS"
+                    decision_text = f"Unlock and open auxiliary manual check-in lanes and backup scanners at {sector}."
+                    reason = f"Equipment malfunction or turnstile failure '{title_raw}' reported at {sector}."
+                    impact = "Divert ingress/egress flow to operational check-in channels and lower wait times."
+                    eta = "3 minutes"
+
+                # 4. Crowd Congestion / Density
+                elif (
+                    inc_type == "CROWD"
+                    or any(k in title or k in desc for k in ["congestion", "density", "crowd", "crush", "accumulation"])
+                ):
+                    action_type = "DISPATCH_VOLUNTEERS"
+                    responsible_team = "VOLUNTEER"
+                    decision_text = f"Deploy 3 crowd-management volunteers to {sector} to direct ingress/egress flow."
+                    reason = f"Crowd congestion incident '{title_raw}' reported in {sector}."
+                    impact = "Disperse density hotspots, lower local density index, and guide fans."
+                    eta = "3 minutes"
+
+                # 5. Default Fallbacks
+                else:
+                    if priority in ("CRITICAL", "HIGH"):
+                        action_type = "DISPATCH_VOLUNTEERS"
+                        responsible_team = "VOLUNTEER"
+                        decision_text = f"Deploy emergency volunteer taskforce to {sector} to assist security and operations."
+                        reason = f"High priority incident '{title_raw}' reported in {sector}."
+                        impact = "On-site assessment, crowd guidance, and coordination support."
+                        eta = "5 minutes"
+                    else:
+                        action_type = "BROADCAST_MESSAGES"
+                        responsible_team = "OPERATIONS"
+                        decision_text = f"Broadcast status alert and request operational report from staff at {sector}."
+                        reason = f"Incident '{title_raw}' reported in {sector}."
+                        impact = "Maintain operational situational awareness and monitor condition."
+                        eta = "3 minutes"
+
+                # Cache check to avoid duplicate decisions within 45s
+                cache_key = f"inc_{action_type}_{sector}"
+                now_ts = asyncio.get_event_loop().time()
+                if cache_key in self._decision_cache and (now_ts - self._decision_cache[cache_key]) < 45.0:
+                    return
+
+                self._decision_cache[cache_key] = now_ts
+
+                # Create Decision
+                db_decision = Decision(
+                    id=str(uuid.uuid4()),
+                    prediction_id=None,
+                    incident_id=inc_id,
+                    decision=decision_text,
+                    reason=reason,
+                    expected_impact=impact,
+                    responsible_team=responsible_team,
+                    eta=eta,
+                    action_type=action_type
+                )
+                db.add(db_decision)
+
+                # Send Notification to Operations
+                ops_user = db.query(User).join(User.role).filter(User.role.has(name="OPERATIONS")).first()
+                ops_id = str(ops_user.id) if ops_user else None
+                if ops_id:
+                    db.add(Notification(
                         id=str(uuid.uuid4()),
-                        prediction_id=None,
-                        incident_id=inc_id,
-                        decision=decision_text,
-                        reason=reason,
-                        expected_impact=impact,
-                        responsible_team="SECURITY",
-                        eta="1 minute",
-                        action_type="CLOSE_GATES"
-                    )
-                    db.add(db_decision)
-                    db.commit()
-                    
-                    logger.warning(
-                        f"[DECISION] 🚨 MITIGATION ACTIVATED [CLOSE_GATES] | Team=SECURITY | "
-                        f"Decision: {decision_text} | Reason: {reason}"
-                    )
+                        recipient_id=ops_id,
+                        title=f"Incident Decision: {action_type}",
+                        message=f"Mitigation plan initiated: {decision_text}",
+                        read=False,
+                        priority="HIGH" if priority in ("CRITICAL", "HIGH") else "MEDIUM",
+                        type="SYSTEM",
+                        created_at=datetime.now(timezone.utc)
+                    ))
+
+                db.commit()
+
+                logger.warning(
+                    f"[DECISION] 🚨 MITIGATION ACTIVATED [{action_type}] | Team={responsible_team} | "
+                    f"Decision: {decision_text} | Reason: {reason}"
+                )
             except Exception as e:
                 db.rollback()
                 logger.error(f"[DECISION] Incident handler failed: {e}", exc_info=True)

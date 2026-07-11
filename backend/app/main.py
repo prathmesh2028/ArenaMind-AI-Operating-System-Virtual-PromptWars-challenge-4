@@ -34,7 +34,7 @@ from app.bus.handlers import register_all_handlers
 from app.bus import router as bus_router
 
 # Routers
-from app.routers import auth, events, incidents, predictions, tasks, replay, dashboard, fan, volunteer, operations, decisions as decisions_router
+from app.routers import auth, events, incidents, predictions, tasks, replay, dashboard, fan, volunteer, operations, decisions as decisions_router, copilot as copilot_router
 
 # ---------------------------------------------------------------------------
 # Structured JSON Logging
@@ -162,6 +162,7 @@ app.include_router(volunteer.router)
 app.include_router(operations.router)
 app.include_router(bus_router)
 app.include_router(decisions_router.router)
+app.include_router(copilot_router.router)
 
 
 # ---------------------------------------------------------------------------

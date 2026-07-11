@@ -83,6 +83,27 @@ def create_incident(
     db.commit()
     db.refresh(incident)
     logger.info(f"Incident created: {incident.id} by {current_user.email}")
+
+    # Publish incident.raised to Event Bus so Decision Engine can react
+    try:
+        from app.bus.core import bus
+        from app.bus.schemas import BusEvent
+        bus.publish_sync(BusEvent(
+            topic="INCIDENT_RAISED",
+            source="router.incidents",
+            sector=payload.sector,
+            payload={
+                "incident_id": incident.id,
+                "sector": payload.sector,
+                "priority": payload.priority,
+                "incident_type": "MANUAL",
+                "title": payload.title,
+                "description": payload.description or ""
+            }
+        ))
+    except Exception as e_bus:
+        logger.warning(f"Failed to publish incident.raised for manual incident: {e_bus}")
+
     return incident
 
 

@@ -894,7 +894,10 @@ def _check_incidents(db: Session, state: TwinState, bus_events: list[BusEvent], 
                     "incident_id": inc_id,
                     "sector": sector,
                     "priority": priority,
-                    "density": density
+                    "density": density,
+                    "incident_type": "CROWD",
+                    "title": f"Crowd Congestion — {sector}",
+                    "description": f"Digital Twin: density at {density:.1%} ({state.sector_counts[sector]} fans)."
                 }
             ))
 
@@ -912,9 +915,11 @@ def _check_incidents(db: Session, state: TwinState, bus_events: list[BusEvent], 
             if key not in state.open_incidents:
                 inc_id = str(uuid.uuid4())
                 sector = be.sector or "Unknown"
+                title = f"Medical: {be.payload.get('event_type', 'UNKNOWN')} in {sector}"
+                desc = be.payload.get("description", "")
                 db.add(Incident(
-                    id=inc_id, title=f"Medical: {be.payload.get('event_type', 'UNKNOWN')} in {sector}",
-                    description=be.payload.get("description", ""),
+                    id=inc_id, title=title,
+                    description=desc,
                     status="ACTIVE", priority=be.payload["severity"],
                     sector=sector, reporter_id=None, assignee_id=ops_id, created_at=now,
                 ))
@@ -922,10 +927,24 @@ def _check_incidents(db: Session, state: TwinState, bus_events: list[BusEvent], 
                     db.add(Notification(
                         id=str(uuid.uuid4()), recipient_id=ops_id,
                         title=f"MEDICAL ALERT: {be.payload.get('event_type')} — {sector}",
-                        message=be.payload.get("description", ""),
+                        message=desc,
                         read=False, priority=be.payload["severity"], type="INCIDENT_ALERT", created_at=now,
                     ))
                 state.open_incidents[key] = inc_id
+                
+                _emit(BusEvent(
+                    topic="INCIDENT_RAISED",
+                    source="digital_twin",
+                    sector=sector,
+                    payload={
+                        "incident_id": inc_id,
+                        "sector": sector,
+                        "priority": be.payload["severity"],
+                        "incident_type": "MEDICAL",
+                        "title": title,
+                        "description": desc
+                    }
+                ))
 
     # --- Security events → incidents ---
     for be in bus_events:
@@ -934,13 +953,29 @@ def _check_incidents(db: Session, state: TwinState, bus_events: list[BusEvent], 
             if key not in state.open_incidents:
                 inc_id = str(uuid.uuid4())
                 sector = be.sector or "Gate"
+                title = f"Security: {be.payload.get('event_type')} at {sector}"
+                desc = be.payload.get("description", "")
                 db.add(Incident(
-                    id=inc_id, title=f"Security: {be.payload.get('event_type')} at {sector}",
-                    description=be.payload.get("description", ""),
+                    id=inc_id, title=title,
+                    description=desc,
                     status="ACTIVE", priority=be.payload["severity"],
                     sector=sector, reporter_id=None, assignee_id=ops_id, created_at=now,
                 ))
                 state.open_incidents[key] = inc_id
+                
+                _emit(BusEvent(
+                    topic="INCIDENT_RAISED",
+                    source="digital_twin",
+                    sector=sector,
+                    payload={
+                        "incident_id": inc_id,
+                        "sector": sector,
+                        "priority": be.payload["severity"],
+                        "incident_type": "SECURITY",
+                        "title": title,
+                        "description": desc
+                    }
+                ))
 
 
 # ===========================================================================
