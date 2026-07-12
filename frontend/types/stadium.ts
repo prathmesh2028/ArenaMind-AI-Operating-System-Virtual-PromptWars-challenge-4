@@ -30,6 +30,7 @@ export interface Incident {
 export interface VolunteerTask {
   id: string;
   title: string;
+  description?: string;
   status: TaskStatus;
   priority: string;
   incidentId: string;
