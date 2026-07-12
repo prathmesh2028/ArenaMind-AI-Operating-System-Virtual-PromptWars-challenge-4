@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ClipboardList, AlertOctagon, CheckCircle2, Play, Check, Clock } from "lucide-react";
+import { CheckCircle2, Play, Check, Clock } from "lucide-react";
 import { VolunteerTask } from "../../types/stadium";
 
 interface TaskBoardProps {
   tasks: VolunteerTask[];
-  onAccept: (id: string) => void;
-  onComplete: (id: string) => void;
+  onAccept: (_id: string) => void;
+  onComplete: (_id: string) => void;
 }
 
 // Timer sub-component to run independent stopwatches for each accepted task

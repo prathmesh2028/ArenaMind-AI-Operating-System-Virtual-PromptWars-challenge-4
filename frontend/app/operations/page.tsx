@@ -283,7 +283,7 @@ export default function OperationsDashboard() {
           const updated = { ...lastRecord, [sectorName]: Math.round(density * 100) };
           return [...prev.slice(0, -1), updated];
         } else {
-          const newRecord = {
+          const newRecord: Record<string, any> = {
             timestamp,
             [sectorName]: Math.round(density * 100),
           };
@@ -291,7 +291,7 @@ export default function OperationsDashboard() {
           if (lastRecord) {
             sectors.forEach((s) => {
               if (s.sector !== sectorName) {
-                newRecord[s.sector] = lastRecord[s.sector] || Math.round(s.density * 100);
+                newRecord[s.sector] = (lastRecord as any)[s.sector] || Math.round(s.density * 100);
               }
             });
           }
