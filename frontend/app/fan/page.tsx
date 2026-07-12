@@ -295,7 +295,7 @@ export default function FanPortal() {
         {/* Main Content sheet */}
         <div className="flex-1 overflow-y-auto px-5 py-4 z-10 bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-950">
           {activeTab === "home" ? (
-            <HomeView parkingLots={parkingLots} transitVehicles={transitVehicles} sectors={sectors} />
+            <HomeView parkingLots={parkingLots} transitVehicles={transitVehicles} _sectors={sectors} />
           ) : activeTab === "food" ? (
             <FoodView />
           ) : activeTab === "assistant" ? (
