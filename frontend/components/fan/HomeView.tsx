@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useState } from "react";
 import { QrCode, MapPin, Bus, Car, Check } from "lucide-react";
 
 interface ParkingItem {
