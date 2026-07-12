@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, BrainCircuit, Users, Heart, Zap, Truck, Check, HelpCircle } from "lucide-react";
+import { Shield, BrainCircuit, Users, Heart, Zap, Truck, Check } from "lucide-react";
 import { Decision } from "../../types/stadium";
 
 interface PredictionItem {
@@ -16,7 +16,7 @@ interface PredictionItem {
 interface DecisionFeedProps {
   decisions: Decision[];
   predictions: PredictionItem[];
-  onAcceptRecommendation?: (predId: string, recId: string) => void;
+  onAcceptRecommendation?: (_predId: string, _recId: string) => void;
 }
 
 export default function DecisionFeed({

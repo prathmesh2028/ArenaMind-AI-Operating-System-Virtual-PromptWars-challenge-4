@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Bot, Shield, Users, Bus, Zap, AlertTriangle, ArrowLeft, RefreshCw, Radio } from "lucide-react";
+import { Bot, ArrowLeft, RefreshCw, Radio } from "lucide-react";
 
 // Import custom dashboard components
 import HealthScore from "../../components/dashboard/HealthScore";
@@ -14,8 +14,8 @@ import AiMissionControl from "../../components/dashboard/AiMissionControl";
 
 import { Incident, Decision } from "../../types/stadium";
 
-const API_BASE_URL = "http://localhost:8000";
-const WS_BASE_URL = "ws://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 interface Sector {
   sector: string;
@@ -329,7 +329,6 @@ export default function OperationsDashboard() {
     }
 
     else if (topic === "energy.tick") {
-      const zone = payload.zone;
       const activeKw = payload.active_power_kw;
       const solarKw = payload.solar_offset_kw || 30;
 

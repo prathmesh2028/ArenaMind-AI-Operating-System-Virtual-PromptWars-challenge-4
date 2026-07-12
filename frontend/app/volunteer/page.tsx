@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Smartphone, ArrowLeft, Bot, Signal, Wifi, WifiOff, RefreshCw, X, Radio } from "lucide-react";
+import { Smartphone, ArrowLeft, Signal, Wifi, WifiOff, X } from "lucide-react";
 
 // Import custom subviews
 import BottomNav from "../../components/volunteer/BottomNav";
@@ -13,8 +13,8 @@ import CopilotView from "../../components/volunteer/CopilotView";
 
 import { VolunteerTask } from "../../types/stadium";
 
-const API_BASE_URL = "http://localhost:8000";
-const WS_BASE_URL = "ws://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 interface NotificationItem {
   id: string;

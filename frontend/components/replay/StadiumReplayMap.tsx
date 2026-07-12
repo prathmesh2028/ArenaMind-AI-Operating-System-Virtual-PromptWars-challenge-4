@@ -1,5 +1,4 @@
-import React from "react";
-import { Navigation, AlertTriangle, Users, Compass } from "lucide-react";
+import { AlertTriangle, Compass } from "lucide-react";
 
 interface StadiumReplayMapProps {
   sectorDensities: Record<string, number>;
@@ -21,12 +20,6 @@ export default function StadiumReplayMap({
     "Sector D": { x: "75%", y: "70%" },
     "Sector E": { x: "50%", y: "80%" },
     "Sector F": { x: "25%", y: "70%" },
-  };
-
-  const getHeatmapColor = (density: number = 0) => {
-    if (density >= 90) return "fill-danger/35 stroke-danger shadow-[0_0_15px_rgba(244,63,94,0.4)]";
-    if (density >= 75) return "fill-warning/35 stroke-warning shadow-[0_0_15px_rgba(245,158,11,0.4)]";
-    return "fill-success/20 stroke-success/60 shadow-[0_0_10px_rgba(16,185,129,0.1)]";
   };
 
   return (

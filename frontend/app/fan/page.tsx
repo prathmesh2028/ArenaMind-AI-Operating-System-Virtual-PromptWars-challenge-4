@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Compass, Sparkles, Smartphone, ArrowLeft, Bot, Signal, Bell, BellOff, X } from "lucide-react";
+import { Smartphone, ArrowLeft, Signal, X } from "lucide-react";
 
 // Import custom subviews
 import BottomNav from "../../components/fan/BottomNav";
@@ -11,8 +11,8 @@ import FoodView from "../../components/fan/FoodView";
 import AssistantView from "../../components/fan/AssistantView";
 import EmergencyView from "../../components/fan/EmergencyView";
 
-const API_BASE_URL = "http://localhost:8000";
-const WS_BASE_URL = "ws://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 interface ParkingItem {
   name: string;
@@ -223,23 +223,7 @@ export default function FanPortal() {
     }
   }
 
-  const handleMarkRead = async (id: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/fan/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  // handleMarkRead has been removed as it is not actively used in the current subviews.
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

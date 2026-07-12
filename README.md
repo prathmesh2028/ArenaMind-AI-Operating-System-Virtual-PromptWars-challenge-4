@@ -61,3 +61,23 @@ To launch the complete integrated environment locally:
 
 ## Production Deployment
 To deploy ArenaMind AI directly to Google Cloud Run from GitHub, please refer to the detailed [DEPLOYMENT_GUIDE.md](file:///c:/IT/Hackathons/PromptWars4/DEPLOYMENT_GUIDE.md).
+
+---
+
+## Running Backend Tests
+The backend contains a modular testing harness utilizing `pytest` to verify routing, auth claims, database operations, and engine simulations with mock data.
+
+To execute the test suite:
+1. Navigate to the `backend/` directory:
+   ```bash
+   cd backend
+   ```
+2. Install test dependencies:
+   ```bash
+   pip install pytest pytest-cov pytest-asyncio httpx
+   ```
+3. Run the tests with coverage metrics:
+   ```bash
+   pytest --cov=app tests/ -v
+   ```
+

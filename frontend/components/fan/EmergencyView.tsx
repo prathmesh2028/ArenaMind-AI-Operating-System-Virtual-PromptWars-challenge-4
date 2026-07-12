@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { AlertTriangle, ShieldAlert, HeartPulse, Send, CheckCircle, Clock } from "lucide-react";
+import { ShieldAlert, HeartPulse, Send, Clock } from "lucide-react";
 
 interface EmergencyViewProps {
   apiUrl?: string;

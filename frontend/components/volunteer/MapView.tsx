@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Map, Navigation, Locate, AlertTriangle } from "lucide-react";
+import { Navigation, Locate } from "lucide-react";
 
 interface MapViewProps {
   activeTaskLocation?: string; // e.g. "Sector E" or "Sector B"

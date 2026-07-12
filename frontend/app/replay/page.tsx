@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Play, Pause, RotateCcw, AlertTriangle, FastForward, Activity, LayoutDashboard, ArrowLeft } from "lucide-react";
+import { Play, Pause, RotateCcw, Activity, ArrowLeft } from "lucide-react";
 
 // Import custom sub-components
 import StadiumReplayMap from "../../components/replay/StadiumReplayMap";
 import ReplayCharts from "../../components/replay/ReplayCharts";
 import ReplayOverlay from "../../components/replay/ReplayOverlay";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface SessionSummary {
   replay_session_id: string;
@@ -130,7 +130,7 @@ export default function ReplayEngine() {
   }, [isPlaying, playbackSpeed, timelineFrames]);
 
   // Frame Interpolator Engine
-  const buildTimelineFrames = (rawEvents: any[]) => {
+  const buildTimelineFrames = (_rawEvents: any[]) => {
     const frames: FrameData[] = [];
     const totalDurationSeconds = 300; // 5 minute scenarios (15:45 to 15:50)
     const stepSeconds = 2;

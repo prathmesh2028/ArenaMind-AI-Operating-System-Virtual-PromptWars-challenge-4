@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { AlertCircle, Mic, MicOff, Camera, Send, X, CheckCircle } from "lucide-react";
+import { Mic, MicOff, Camera, Send, X } from "lucide-react";
 
 interface ReportViewProps {
-  onReportIncident: (incident: {
+  onReportIncident: (_incident: {
     title: string;
     description: string;
     priority: string;

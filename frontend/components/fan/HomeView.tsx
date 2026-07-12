@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { Compass, QrCode, MapPin, Bus, Car, ArrowRight, Check } from "lucide-react";
+import { QrCode, MapPin, Bus, Car, Check } from "lucide-react";
 
 interface ParkingItem {
   name: string;
@@ -19,10 +18,10 @@ interface TransportItem {
 interface HomeViewProps {
   parkingLots: ParkingItem[];
   transitVehicles: TransportItem[];
-  sectors: Array<{ sector: string; density_pct: number; wait_time_seconds: number }>;
+  _sectors: Array<{ sector: string; density_pct: number; wait_time_seconds: number }>;
 }
 
-export default function HomeView({ parkingLots = [], transitVehicles = [], sectors = [] }: HomeViewProps) {
+export default function HomeView({ parkingLots = [], transitVehicles = [], _sectors = [] }: HomeViewProps) {
   const [section, setSection] = useState("");
   const [row, setRow] = useState("");
   const [seat, setSeat] = useState("");

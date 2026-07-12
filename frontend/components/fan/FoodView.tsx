@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { Coffee, Clock, ChefHat, Check, ChevronRight } from "lucide-react";
+import { Coffee, Clock, ChefHat, ChevronRight } from "lucide-react";
 
 interface FoodStall {
   id: string;

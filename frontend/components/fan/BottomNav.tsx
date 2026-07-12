@@ -3,7 +3,7 @@ import { Compass, Utensils, MessageSquare, AlertOctagon } from "lucide-react";
 
 interface BottomNavProps {
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (_tab: string) => void;
   unreadCount?: number;
 }
 
@@ -23,6 +23,9 @@ export default function BottomNav({ activeTab, setActiveTab, unreadCount = 0 }: 
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            aria-label={tab.label}
+            aria-selected={isActive}
+            role="tab"
             className="flex flex-col items-center gap-1 relative py-1 focus:outline-none select-none cursor-pointer group"
           >
             {/* Active background pill */}

@@ -1,5 +1,4 @@
-import React from "react";
-import { DoorOpen, AlertTriangle, HelpCircle } from "lucide-react";
+import { DoorOpen, AlertTriangle } from "lucide-react";
 
 interface SectorData {
   sector: string;

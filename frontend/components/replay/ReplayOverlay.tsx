@@ -1,5 +1,4 @@
-import React from "react";
-import { AlertCircle, ShieldAlert, Cpu, HeartPulse, ClipboardList, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, Cpu, ClipboardList, CheckCircle2 } from "lucide-react";
 
 interface ReplayOverlayProps {
   currentFrameTime: string;

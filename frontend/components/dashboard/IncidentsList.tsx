@@ -14,7 +14,7 @@ interface TimelineEvent {
 interface IncidentsListProps {
   incidents: Incident[];
   timeline: TimelineEvent[];
-  onResolve?: (id: string) => void;
+  onResolve?: (_id: string) => void;
 }
 
 export default function IncidentsList({
