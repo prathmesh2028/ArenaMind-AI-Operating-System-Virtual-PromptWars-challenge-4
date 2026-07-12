@@ -31,7 +31,7 @@ from app.engine.decision import decision_engine
 # Event Bus & Handlers
 from app.bus.core import bus
 from app.bus.handlers import register_all_handlers
-from app.bus import router as bus_router
+from app.bus.router import router as bus_router
 
 # Routers
 from app.routers import auth, events, incidents, predictions, tasks, replay, dashboard, fan, volunteer, operations, decisions as decisions_router, copilot as copilot_router

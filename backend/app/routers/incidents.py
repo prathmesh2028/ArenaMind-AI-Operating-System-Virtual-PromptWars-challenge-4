@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.deps import CurrentUser, require_operations, require_staff, require_admin
+from app.core.deps import CurrentUser, require_operations, require_staff, require_admin, get_current_user
 from app.core.exceptions import NotFoundError
 from app.database import get_db
 from app.models import Incident
@@ -66,7 +66,7 @@ def list_incidents(
 def create_incident(
     payload: IncidentCreate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_staff),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     incident = Incident(
         id=__import__("uuid").uuid4().__str__(),

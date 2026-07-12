@@ -1,0 +1,72 @@
+steps:
+  # 1. Build Backend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/backend:$COMMIT_SHA',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/backend:latest',
+      './backend'
+    ]
+    id: 'build-backend'
+
+  # 2. Build Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/frontend:$COMMIT_SHA',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/frontend:latest',
+      '--build-arg', 'NEXT_PUBLIC_API_URL=https://backend-service-hash-uc.a.run.app',
+      './frontend'
+    ]
+    id: 'build-frontend'
+    depends_on: ['build-backend']
+
+  # 3. Push Backend Image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/backend:$COMMIT_SHA']
+    id: 'push-backend'
+    depends_on: ['build-backend']
+
+  # 4. Push Frontend Image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/frontend:$COMMIT_SHA']
+    id: 'push-frontend'
+    depends_on: ['build-frontend']
+
+  # 5. Deploy Backend to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'arenamind-backend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=APP_ENV=production,FIREBASE_DATABASE_URL=https://arenamind-default-rtdb.firebaseio.com'
+      - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest'
+    id: 'deploy-backend'
+    depends_on: ['push-backend']
+
+  # 6. Deploy Frontend to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'arenamind-frontend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/frontend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=NEXT_PUBLIC_API_URL=https://arenamind-backend-uc.a.run.app,NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=arenamind.firebaseapp.com,NEXT_PUBLIC_FIREBASE_PROJECT_ID=arenamind'
+    id: 'deploy-frontend'
+    depends_on: ['push-frontend', 'deploy-backend']
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/backend:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/arenamind-repo/frontend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

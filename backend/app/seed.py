@@ -339,6 +339,7 @@ def seed_database():
         db.close()
 
 if __name__ == "__main__":
-    # Create tables if not exists, then seed
+    # Drop and recreate tables to ensure schema matches model definitions
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     seed_database()

@@ -1009,7 +1009,8 @@ async def _run_tick(state: TwinState) -> None:
     # Persist to database
     db: Session = SessionLocal()
     try:
-        _persist_events(db, bus_events, now)
+        # Event Bus handles event persistence asynchronously. Twin only persists state telemetry.
+        # _persist_events(db, bus_events, now)
         _persist_crowd_metrics(db, state, now)
         _persist_parking(db, state, now)
         _persist_transport(db, state, now)

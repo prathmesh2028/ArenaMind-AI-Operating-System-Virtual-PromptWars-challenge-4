@@ -7,10 +7,13 @@ Aggregates data from the Digital Twin state + DB into a single payload
 designed to power the Operations Command Center frontend.
 """
 
+import asyncio
 import logging
+import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from app.bus.schemas import BusEvent
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -230,3 +233,36 @@ def get_dashboard(
         carbon=_carbon_summary(db),
         unread_notifications=unread or 0,
     )
+
+
+@router.websocket("/ws")
+async def dashboard_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time dashboard updates.
+    Streams events from the global EventBus to the client.
+    """
+    await websocket.accept()
+    client_id = f"ws_dash_{uuid.uuid4().hex}"
+    queue = asyncio.Queue()
+
+    async def event_handler(event: BusEvent):
+        try:
+            await queue.put(event.to_dict())
+        except Exception as e:
+            logger.warning(f"[WS] Failed to queue event for {client_id}: {e}")
+
+    from app.bus.core import bus
+    bus.subscribe("*", event_handler, name=client_id)
+    logger.info(f"[WS] Client connected: {client_id}")
+
+    try:
+        while True:
+            event_data = await queue.get()
+            await websocket.send_json(event_data)
+            queue.task_done()
+    except WebSocketDisconnect:
+        logger.info(f"[WS] Client disconnected: {client_id}")
+    except Exception as e:
+        logger.error(f"[WS] Error on connection {client_id}: {e}")
+    finally:
+        bus.unsubscribe(client_id)

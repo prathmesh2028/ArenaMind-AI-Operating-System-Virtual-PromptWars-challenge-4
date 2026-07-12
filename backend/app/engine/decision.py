@@ -191,6 +191,26 @@ class DecisionEngine:
 
                 db.commit()
 
+                # Publish decision to Event Bus
+                try:
+                    from app.bus.core import bus
+                    await bus.publish(BusEvent(
+                        topic="decision.created",
+                        source="engine.decision",
+                        payload={
+                            "id": db_decision.id,
+                            "decision": db_decision.decision,
+                            "reason": db_decision.reason,
+                            "expected_impact": db_decision.expected_impact,
+                            "responsible_team": db_decision.responsible_team,
+                            "eta": db_decision.eta,
+                            "action_type": db_decision.action_type,
+                            "created_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    ))
+                except Exception as e_bus:
+                    logger.warning(f"[DECISION] Failed to publish decision.created: {e_bus}")
+
                 logger.warning(
                     f"[DECISION] 🚨 MITIGATION ACTIVATED [{action_type}] | Team={responsible_team} | "
                     f"Decision: {decision_text} | Reason: {reason}"
@@ -356,6 +376,26 @@ class DecisionEngine:
                 ))
             
             db.commit()
+            
+            # Publish decision to Event Bus
+            try:
+                from app.bus.core import bus
+                await bus.publish(BusEvent(
+                    topic="decision.created",
+                    source="engine.decision",
+                    payload={
+                        "id": decision_to_save.id,
+                        "decision": decision_to_save.decision,
+                        "reason": decision_to_save.reason,
+                        "expected_impact": decision_to_save.expected_impact,
+                        "responsible_team": decision_to_save.responsible_team,
+                        "eta": decision_to_save.eta,
+                        "action_type": decision_to_save.action_type,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                ))
+            except Exception as e_bus:
+                logger.warning(f"[DECISION] Failed to publish decision.created: {e_bus}")
             
             logger.info(
                 f"[DECISION] Deterministic mitigation activated [{decision_to_save.action_type}] | "
