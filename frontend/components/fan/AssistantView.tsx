@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Globe, Accessibility, Send, Bot, Volume2 } from "lucide-react";
 
 interface Message {
