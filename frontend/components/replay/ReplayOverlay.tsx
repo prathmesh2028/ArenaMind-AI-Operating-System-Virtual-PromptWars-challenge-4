@@ -1,3 +1,4 @@
+import React from "react";
 import { ShieldAlert, Cpu, ClipboardList, CheckCircle2 } from "lucide-react";
 
 interface ReplayOverlayProps {

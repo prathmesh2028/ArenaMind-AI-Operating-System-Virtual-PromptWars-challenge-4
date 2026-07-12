@@ -1,3 +1,4 @@
+import React from "react";
 import { AlertTriangle, Compass } from "lucide-react";
 
 interface StadiumReplayMapProps {

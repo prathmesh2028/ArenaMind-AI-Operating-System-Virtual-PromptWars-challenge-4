@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useState } from "react";
 import { Coffee, Clock, ChefHat, ChevronRight } from "lucide-react";
 
 interface FoodStall {
