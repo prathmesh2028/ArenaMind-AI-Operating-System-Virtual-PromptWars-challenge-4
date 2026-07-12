@@ -36,6 +36,30 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-sans)", "Inter", "sans-serif"],
       },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideDown: {
+          "0%": { transform: "translateY(-15px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        slideLeft: {
+          "0%": { transform: "translateX(25px)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(15px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+      },
+      animation: {
+        fadeIn: "fadeIn 0.3s ease-out forwards",
+        slideDown: "slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        slideLeft: "slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        slideUp: "slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+      },
     },
   },
   plugins: [],

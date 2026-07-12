@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -25,7 +26,7 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl w-full z-10">
         
         {/* Ops Command Center Card */}
-        <div className="glass group hover:border-primary/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
+        <Link href="/operations" className="glass group hover:border-primary/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
           <div>
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,10 +41,10 @@ export default function Home() {
           <span className="text-xs text-primary font-medium tracking-wide uppercase inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform duration-300">
             Launch Portal &rarr;
           </span>
-        </div>
+        </Link>
 
         {/* Fan Portal Card */}
-        <div className="glass group hover:border-success/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
+        <Link href="/fan" className="glass group hover:border-success/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
           <div>
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center text-success mb-6 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,10 +59,10 @@ export default function Home() {
           <span className="text-xs text-success font-medium tracking-wide uppercase inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform duration-300">
             Launch Portal &rarr;
           </span>
-        </div>
+        </Link>
 
         {/* Volunteer Copilot Card */}
-        <div className="glass group hover:border-warning/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
+        <Link href="/volunteer" className="glass group hover:border-warning/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
           <div>
             <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center text-warning mb-6 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,10 +77,10 @@ export default function Home() {
           <span className="text-xs text-warning font-medium tracking-wide uppercase inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform duration-300">
             Launch Portal &rarr;
           </span>
-        </div>
+        </Link>
 
         {/* Scenario Replay Card */}
-        <div className="glass group hover:border-danger/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
+        <Link href="/replay" className="glass group hover:border-danger/50 transition-all duration-300 p-6 rounded-2xl flex flex-col justify-between cursor-pointer h-64">
           <div>
             <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center text-danger mb-6 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +96,7 @@ export default function Home() {
           <span className="text-xs text-danger font-medium tracking-wide uppercase inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform duration-300">
             Launch Portal &rarr;
           </span>
-        </div>
+        </Link>
 
       </div>
 

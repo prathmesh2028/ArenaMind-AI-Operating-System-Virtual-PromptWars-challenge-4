@@ -54,3 +54,15 @@ export interface EventLog {
   source: string;
   payload: Record<string, any>;
 }
+
+export interface Decision {
+  id: string;
+  decision: string;
+  reason: string;
+  expected_impact: string;
+  responsible_team: string;
+  eta: number;
+  createdAt?: string;
+  action_type?: string;
+  created_at?: string;
+}
