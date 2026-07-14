@@ -42,8 +42,8 @@ export default function OperationsDashboard() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
 
   // Telemetry history lists for Recharts
-  const [crowdHistory, setCrowdHistory] = useState<Record<string, unknown>[]>([]);
-  const [energyHistory, setEnergyHistory] = useState<Record<string, number | string>[]>([]);
+  const [crowdHistory, setCrowdHistory] = useState<{ timestamp: string; [sector: string]: any }[]>([]);
+  const [energyHistory, setEnergyHistory] = useState<{ timestamp: string; active_power: number; solar_offset: number }[]>([]);
 
   // Health scores
   const [healthScores, setHealthScores] = useState({
@@ -241,10 +241,10 @@ export default function OperationsDashboard() {
       });
 
       setCrowdHistory((prev) => {
-        const lastRecord = prev[prev.length - 1] as Record<string, unknown> | undefined;
+        const lastRecord = prev[prev.length - 1];
         const isSameTime =
           lastRecord &&
-          new Date(lastRecord.timestamp as string).getTime() ===
+          new Date(lastRecord.timestamp).getTime() ===
             new Date(timestamp).getTime();
 
         if (isSameTime && lastRecord) {
@@ -252,7 +252,7 @@ export default function OperationsDashboard() {
           return [...prev.slice(0, -1), updated];
         }
 
-        const newRecord: Record<string, unknown> = {
+        const newRecord: { timestamp: string; [sector: string]: any } = {
           timestamp,
           [sectorName]: Math.round(density * 100),
         };
