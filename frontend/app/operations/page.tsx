@@ -166,7 +166,7 @@ export default function OperationsDashboard() {
       );
       if (historyRes.ok) {
         const histData = await historyRes.json();
-        const grouped: Record<string, Record<string, unknown>> = {};
+        const grouped: Record<string, { timestamp: string; [sector: string]: any }> = {};
         histData.records.forEach((r: Record<string, unknown>) => {
           const ts = r.timestamp as string;
           if (!grouped[ts]) {
@@ -177,8 +177,8 @@ export default function OperationsDashboard() {
 
         const list = Object.values(grouped).sort(
           (a, b) =>
-            new Date(a.timestamp as string).getTime() -
-            new Date(b.timestamp as string).getTime(),
+            new Date(a.timestamp).getTime() -
+            new Date(b.timestamp).getTime(),
         );
         setCrowdHistory(list.slice(-12));
       }
