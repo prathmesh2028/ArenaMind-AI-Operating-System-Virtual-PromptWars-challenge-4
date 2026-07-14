@@ -1,17 +1,9 @@
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import React, { useState } from "react";
 import { Shield, BrainCircuit, Users, Heart, Zap, Truck, Check } from "lucide-react";
 import { Decision } from "../../types/stadium";
-
-interface PredictionItem {
-  id: string;
-  type: string;
-  probability: number;
-  confidence: number;
-  severity: string;
-  reasoning: string;
-  targetSector: string;
-  recommendations: Array<{ id: string; title: string; description: string; status: string }>;
-}
+import type { PredictionItem } from "../../lib/types";
+import { PREDICTION_HIGH_THRESHOLD, PREDICTION_MEDIUM_THRESHOLD } from "../../lib/constants";
 
 interface DecisionFeedProps {
   decisions: Decision[];
@@ -167,9 +159,9 @@ export default function DecisionFeed({
                     </div>
                     <div className="text-right">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                        pred.probability >= 0.85
+                        pred.probability >= PREDICTION_HIGH_THRESHOLD
                           ? "bg-danger/10 border-danger/25 text-danger"
-                          : pred.probability >= 0.65
+                          : pred.probability >= PREDICTION_MEDIUM_THRESHOLD
                           ? "bg-warning/10 border-warning/25 text-warning"
                           : "bg-success/10 border-success/25 text-success"
                       }`}>

@@ -1,6 +1,13 @@
+/** Enumerated user roles across the ArenaMind platform. */
 export type UserRole = "ADMIN" | "OPERATIONS" | "VOLUNTEER" | "MEDICAL" | "SECURITY" | "FAN";
+
+/** Lifecycle status of an incident. */
 export type IncidentStatus = "ACTIVE" | "MITIGATING" | "RESOLVED";
+
+/** Severity priority of an incident. */
 export type IncidentPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+/** Lifecycle status of a volunteer task. */
 export type TaskStatus = "PENDING" | "ACCEPTED" | "COMPLETED";
 
 export interface User {
@@ -53,9 +60,15 @@ export interface EventLog {
   timestamp: string;
   type: string;
   source: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
+/**
+ * AI-generated mitigation decision.
+ *
+ * Note: field names use snake_case to match the backend API response.
+ * The optional `createdAt` alias is kept for local UI convenience.
+ */
 export interface Decision {
   id: string;
   decision: string;
@@ -63,7 +76,9 @@ export interface Decision {
   expected_impact: string;
   responsible_team: string;
   eta: number;
+  /** Local-only alias (camelCase convenience). */
   createdAt?: string;
   action_type?: string;
+  /** API-native timestamp field. */
   created_at?: string;
 }

@@ -2,17 +2,30 @@
 
 import React, { useState } from "react";
 import { ShieldAlert, HeartPulse, Send, Clock } from "lucide-react";
+import {
+  API_BASE_URL,
+  SOS_DISPATCH_DELAY_MS,
+  SOS_ARRIVAL_DELAY_MS,
+  SOS_MOCK_DISPATCH_DELAY_MS,
+} from "../../lib/constants";
 
 interface EmergencyViewProps {
   apiUrl?: string;
   token?: string;
 }
 
-export default function EmergencyView({ apiUrl = "http://localhost:8000", token }: EmergencyViewProps) {
+interface ReportedIncident {
+  id: string;
+  title: string;
+  sector: string;
+  createdAt: string;
+}
+
+export default function EmergencyView({ apiUrl = API_BASE_URL, token }: EmergencyViewProps) {
   const [incType, setIncType] = useState<"medical" | "security">("medical");
   const [sector, setSector] = useState("Sector C");
   const [description, setDescription] = useState("");
-  const [reportedIncident, setReportedIncident] = useState<any | null>(null);
+  const [reportedIncident, setReportedIncident] = useState<ReportedIncident | null>(null);
   const [dispatchStatus, setDispatchStatus] = useState("REGISTERING");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,14 +56,13 @@ export default function EmergencyView({ apiUrl = "http://localhost:8000", token 
         setReportedIncident(data);
         setDispatchStatus("REGISTERED");
 
-        // Simulate dispatcher workflow status updates
         setTimeout(() => {
           setDispatchStatus("DISPATCHED");
-        }, 3000);
+        }, SOS_DISPATCH_DELAY_MS);
 
         setTimeout(() => {
           setDispatchStatus("ARRIVED");
-        }, 9000);
+        }, SOS_ARRIVAL_DELAY_MS);
       } else {
         throw new Error("Trigger SOS failed");
       }
@@ -64,7 +76,7 @@ export default function EmergencyView({ apiUrl = "http://localhost:8000", token 
         createdAt: new Date().toISOString(),
       });
       setDispatchStatus("REGISTERED");
-      setTimeout(() => setDispatchStatus("DISPATCHED"), 3500);
+      setTimeout(() => setDispatchStatus("DISPATCHED"), SOS_MOCK_DISPATCH_DELAY_MS);
     } finally {
       setIsSubmitting(false);
     }

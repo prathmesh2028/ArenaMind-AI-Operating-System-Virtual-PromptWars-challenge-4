@@ -60,6 +60,23 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ready.")
+        
+        # Auto-seed database if empty
+        from app.database import SessionLocal
+        from app.models import User
+        from app.seed import seed_database
+        
+        db = SessionLocal()
+        try:
+            if db.query(User).count() == 0:
+                logger.info("Database empty. Auto-seeding users and telemetry...")
+                seed_database()
+            else:
+                logger.info("Database already seeded.")
+        except Exception as se:
+            logger.error(f"Database auto-seeding failed: {se}")
+        finally:
+            db.close()
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
 
@@ -133,8 +150,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

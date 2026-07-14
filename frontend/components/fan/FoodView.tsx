@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Coffee, Clock, ChefHat, ChevronRight } from "lucide-react";
+import { getWaitLevelStyle } from "../../lib/utils";
 
 interface FoodStall {
   id: string;
@@ -10,7 +11,8 @@ interface FoodStall {
   location: string;
   menu: string[];
   queueDepth: number;
-  processingRate: number; // fans/minute
+  /** Fans processed per minute. */
+  processingRate: number;
 }
 
 export default function FoodView() {
@@ -55,15 +57,9 @@ export default function FoodView() {
     },
   ];
 
-  // Calculate predicted queue wait time
-  const getWaitTime = (stall: FoodStall) => {
+  /** Calculate predicted queue wait time in minutes. */
+  const getWaitTime = (stall: FoodStall): number => {
     return Math.ceil(stall.queueDepth / stall.processingRate);
-  };
-
-  const getWaitLevel = (waitMinutes: number) => {
-    if (waitMinutes >= 10) return "text-danger bg-danger/10 border-danger/25";
-    if (waitMinutes >= 5) return "text-warning bg-warning/10 border-warning/25";
-    return "text-success bg-success/10 border-success/25";
   };
 
   return (
@@ -92,7 +88,7 @@ export default function FoodView() {
               <h3 className="text-base font-extrabold text-white">{selectedStall.name}</h3>
               <p className="text-[10px] text-zinc-500 font-light mt-0.5">{selectedStall.location}</p>
             </div>
-            <div className={`px-2.5 py-1 rounded-xl border text-xs font-bold shrink-0 ${getWaitLevel(getWaitTime(selectedStall))}`}>
+            <div className={`px-2.5 py-1 rounded-xl border text-xs font-bold shrink-0 ${getWaitLevelStyle(getWaitTime(selectedStall))}`}>
               {getWaitTime(selectedStall)} min wait
             </div>
           </div>
@@ -140,7 +136,7 @@ export default function FoodView() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider ${getWaitLevel(waitTime)}`}>
+                  <div className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider ${getWaitLevelStyle(waitTime)}`}>
                     {waitTime >= 10 ? "Busy" : waitTime >= 5 ? "Moderate" : "Short Wait"}
                   </div>
                   <ChevronRight className="w-4.5 h-4.5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />

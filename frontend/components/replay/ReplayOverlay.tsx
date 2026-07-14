@@ -1,5 +1,6 @@
 import React from "react";
 import { ShieldAlert, Cpu, ClipboardList, CheckCircle2 } from "lucide-react";
+import { getPriorityStyle } from "../../lib/utils";
 
 interface ReplayOverlayProps {
   currentFrameTime: string;
@@ -14,17 +15,6 @@ export default function ReplayOverlay({
   activeDecision = null,
   logs = [],
 }: ReplayOverlayProps) {
-  
-  const getPriorityBadge = (priority: string) => {
-    switch (priority?.toUpperCase()) {
-      case "CRITICAL":
-        return "bg-danger/10 border-danger/35 text-danger";
-      case "HIGH":
-        return "bg-orange-500/10 border-orange-500/35 text-orange-400";
-      default:
-        return "bg-warning/10 border-warning/35 text-warning";
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -36,7 +26,7 @@ export default function ReplayOverlay({
             <span className="text-[9px] uppercase tracking-wider font-extrabold text-danger bg-danger/10 px-2 py-0.5 rounded border border-danger/25 flex items-center gap-1 animate-pulse">
               <ShieldAlert className="w-3.5 h-3.5" /> Incident Registered
             </span>
-            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border tracking-wider ${getPriorityBadge(activeIncident.priority)}`}>
+            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border tracking-wider ${getPriorityStyle(activeIncident.priority)}`}>
               {activeIncident.priority}
             </span>
           </div>

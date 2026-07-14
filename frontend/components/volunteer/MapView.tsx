@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Navigation, Locate } from "lucide-react";
+import { getSectorCoords } from "../../lib/utils";
 
 interface MapViewProps {
   activeTaskLocation?: string; // e.g. "Sector E" or "Sector B"
@@ -26,27 +27,7 @@ export default function MapView({ activeTaskLocation = "Sector E" }: MapViewProp
     return Math.round(num * 1000000) / 1000000;
   };
 
-  // Coordinates mapping grid locations representing the stadium sections
-  const getSectionCoords = (sector: string) => {
-    switch (sector?.toUpperCase()) {
-      case "SECTOR A":
-        return { x: "25%", y: "30%" };
-      case "SECTOR B":
-        return { x: "50%", y: "20%" };
-      case "SECTOR C":
-        return { x: "75%", y: "30%" };
-      case "SECTOR D":
-        return { x: "75%", y: "70%" };
-      case "SECTOR E":
-        return { x: "50%", y: "80%" };
-      case "SECTOR F":
-        return { x: "25%", y: "70%" };
-      default:
-        return { x: "50%", y: "50%" }; // Center pitch
-    }
-  };
-
-  const destCoords = getSectionCoords(activeTaskLocation);
+  const destCoords = getSectorCoords(activeTaskLocation);
 
   return (
     <div className="space-y-6 pb-6">

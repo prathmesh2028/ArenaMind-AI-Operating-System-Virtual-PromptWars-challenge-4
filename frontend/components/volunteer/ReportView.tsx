@@ -1,7 +1,6 @@
-"use client";
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { Mic, MicOff, Camera, Send, X } from "lucide-react";
+import { useSpeechRecognition } from "../../hooks/useSpeechRecognition";
 
 interface ReportViewProps {
   onReportIncident: (_incident: {
@@ -22,66 +21,12 @@ export default function ReportView({ onReportIncident, isOffline }: ReportViewPr
   
   // Camera photo upload states
   const [photo, setPhoto] = useState<string | null>(null);
-  
-  // Voice transcription states
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recog = new SpeechRecognition();
-        recog.continuous = false;
-        recog.interimResults = false;
-        recog.lang = "en-US";
-
-        recog.onstart = () => {
-          setIsListening(true);
-        };
-
-        recog.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript));
-        };
-
-        recog.onerror = (err: any) => {
-          console.error("Speech Recognition Error:", err);
-          setIsListening(false);
-        };
-
-        recog.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recog;
-      }
-    }
-  }, []);
-
-  const handleToggleVoice = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-      } else {
-        // Mock fallback transcription
-        setIsListening(true);
-        setTimeout(() => {
-          const mockPhrases = [
-            "Concourse queue is spilling over turnstiles due to scanner delay.",
-            "Debris blocking Sector D escalator pathway.",
-            "Minor crowd altercation reported near Concession Section F.",
-            "Elevator call button in Sector B is unresponsive."
-          ];
-          const chosen = mockPhrases[Math.floor(Math.random() * mockPhrases.length)];
-          setDescription((prev) => (prev ? `${prev} ${chosen}` : chosen));
-          setIsListening(false);
-        }, 2000);
-      }
-    }
-  };
+  const { isListening, toggleListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    },
+  });
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,7 +130,7 @@ export default function ReportView({ onReportIncident, isOffline }: ReportViewPr
             <label className="text-[10px] text-zinc-500 font-semibold uppercase">Description details</label>
             <button
               type="button"
-              onClick={handleToggleVoice}
+              onClick={toggleListening}
               className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border transition-all duration-300 ${
                 isListening
                   ? "bg-danger border-danger/30 text-white animate-pulse"

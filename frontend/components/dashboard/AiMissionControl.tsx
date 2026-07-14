@@ -2,13 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Send, Bot, Shield, Users, Heart, Zap, Truck, Sparkles, User, Accessibility } from "lucide-react";
-
-interface Message {
-  id: string;
-  sender: "user" | "bot";
-  text: string;
-  timestamp: Date;
-}
+import type { ChatMessage } from "../../lib/types";
+import { API_BASE_URL } from "../../lib/constants";
 
 interface Agent {
   id: string;
@@ -23,9 +18,9 @@ interface AiMissionControlProps {
   token?: string;
 }
 
-export default function AiMissionControl({ apiUrl = "http://localhost:8000", token }: AiMissionControlProps) {
+export default function AiMissionControl({ apiUrl = API_BASE_URL, token }: AiMissionControlProps) {
   const [activeAgent, setActiveAgent] = useState("executive");
-  const [messages, setMessages] = useState<Record<string, Message[]>>({
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({
     executive: [
       {
         id: "init",
@@ -119,7 +114,7 @@ export default function AiMissionControl({ apiUrl = "http://localhost:8000", tok
         ],
       }));
     }
-  }, [activeAgent]);
+  }, [activeAgent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +124,7 @@ export default function AiMissionControl({ apiUrl = "http://localhost:8000", tok
     setInputValue("");
     setIsTyping(true);
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: "user",
       text: userText,
@@ -144,7 +139,7 @@ export default function AiMissionControl({ apiUrl = "http://localhost:8000", tok
 
     // Create an empty bot message to stream into
     const botMsgId = `bot-${Date.now()}`;
-    const initialBotMessage: Message = {
+    const initialBotMessage: ChatMessage = {
       id: botMsgId,
       sender: "bot",
       text: "",

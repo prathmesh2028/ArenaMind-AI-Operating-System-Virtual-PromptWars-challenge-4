@@ -4,12 +4,19 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Play, Pause, RotateCcw, Activity, ArrowLeft } from "lucide-react";
 
-// Import custom sub-components
 import StadiumReplayMap from "../../components/replay/StadiumReplayMap";
 import ReplayCharts from "../../components/replay/ReplayCharts";
 import ReplayOverlay from "../../components/replay/ReplayOverlay";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import {
+  API_BASE_URL,
+  MANAGER_EMAIL,
+  REPLAY_MIN_TICK_MS,
+  REPLAY_BASE_TICK_MS,
+  REPLAY_DURATION_SECONDS,
+  REPLAY_STEP_SECONDS,
+} from "../../lib/constants";
+import { useAuth } from "../../hooks/useAuth";
 
 interface SessionSummary {
   replay_session_id: string;
@@ -31,8 +38,6 @@ interface FrameData {
 }
 
 export default function ReplayEngine() {
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState("");
 
@@ -42,27 +47,15 @@ export default function ReplayEngine() {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [timelineFrames, setTimelineFrames] = useState<FrameData[]>([]);
 
-  const timerRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Authenticate as Operations Manager and fetch sessions
-  useEffect(() => {
-    async function initReplay() {
+  const { token, loading } = useAuth(
+    MANAGER_EMAIL,
+    async (jwtToken: string) => {
       try {
-        setLoading(true);
-        // Login as Sarah Jenkins (Ops Chief)
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: "manager@fifa.com" }),
-        });
-
-        if (!res.ok) throw new Error("Ops auth failed");
-        const data = await res.json();
-        setToken(data.access_token);
-
-        // Fetch distinct replay sessions
         const sessRes = await fetch(`${API_BASE_URL}/replay/sessions`, {
-          headers: { Authorization: `Bearer ${data.access_token}` },
+          headers: { Authorization: `Bearer ${jwtToken}` },
         });
         if (sessRes.ok) {
           const sessData = await sessRes.json();
@@ -72,13 +65,10 @@ export default function ReplayEngine() {
           }
         }
       } catch (err) {
-        console.error("Replay init failed:", err);
-      } finally {
-        setLoading(false);
+        console.error("Failed to load sessions:", err);
       }
-    }
-    initReplay();
-  }, []);
+    },
+  );
 
   // Construct interpolated timeline frames once session is chosen
   useEffect(() => {
@@ -92,13 +82,12 @@ export default function ReplayEngine() {
 
         if (res.ok) {
           const data = await res.json();
-          const rawEvents = data.items || [];
-          buildTimelineFrames(rawEvents);
+          buildTimelineFrames();
         }
       } catch (err) {
         console.error("Failed to load session events:", err);
         // Build mock scenario if backend fails to connect
-        buildTimelineFrames([]);
+        buildTimelineFrames();
       }
     }
     fetchSessionEvents();
@@ -109,12 +98,12 @@ export default function ReplayEngine() {
   // Playback timer ticker loop
   useEffect(() => {
     if (isPlaying) {
-      const delay = Math.max(100, 1000 / playbackSpeed);
+      const delay = Math.max(REPLAY_MIN_TICK_MS, REPLAY_BASE_TICK_MS / playbackSpeed);
       timerRef.current = setInterval(() => {
         setCurrentFrame((prev) => {
           if (prev >= timelineFrames.length - 1) {
             setIsPlaying(false);
-            clearInterval(timerRef.current);
+            if (timerRef.current) clearInterval(timerRef.current);
             return prev;
           }
           return prev + 1;
@@ -130,16 +119,14 @@ export default function ReplayEngine() {
   }, [isPlaying, playbackSpeed, timelineFrames]);
 
   // Frame Interpolator Engine
-  const buildTimelineFrames = (_rawEvents: any[]) => {
+  const buildTimelineFrames = () => {
     const frames: FrameData[] = [];
-    const totalDurationSeconds = 300; // 5 minute scenarios (15:45 to 15:50)
-    const stepSeconds = 2;
-    const numFrames = totalDurationSeconds / stepSeconds;
+    const numFrames = REPLAY_DURATION_SECONDS / REPLAY_STEP_SECONDS;
 
     const baseTime = new Date("2026-07-07T15:45:00Z");
 
     for (let i = 0; i <= numFrames; i++) {
-      const elapsedSecs = i * stepSeconds;
+      const elapsedSecs = i * REPLAY_STEP_SECONDS;
       const frameTime = new Date(baseTime.getTime() + elapsedSecs * 1000);
       const timeLabel = frameTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 

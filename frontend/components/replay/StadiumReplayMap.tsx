@@ -1,5 +1,6 @@
 import React from "react";
 import { AlertTriangle, Compass } from "lucide-react";
+import { SECTOR_POSITIONS, DENSITY_CRITICAL_PCT, DENSITY_WARNING_PCT } from "../../lib/constants";
 
 interface StadiumReplayMapProps {
   sectorDensities: Record<string, number>;
@@ -12,16 +13,6 @@ export default function StadiumReplayMap({
   volunteerPos = { x: 50, y: 50 },
   activeIncidentSector = null,
 }: StadiumReplayMapProps) {
-  
-  // Grid coordinates representing stadium sectors
-  const sectorPositions: Record<string, { x: string; y: string }> = {
-    "Sector A": { x: "25%", y: "30%" },
-    "Sector B": { x: "50%", y: "20%" },
-    "Sector C": { x: "75%", y: "30%" },
-    "Sector D": { x: "75%", y: "70%" },
-    "Sector E": { x: "50%", y: "80%" },
-    "Sector F": { x: "25%", y: "70%" },
-  };
 
   return (
     <div className="glass p-5 rounded-2xl border border-zinc-850 space-y-4">
@@ -44,7 +35,7 @@ export default function StadiumReplayMap({
         </div>
 
         {/* Sectors */}
-        {Object.entries(sectorPositions).map(([name, coords]) => {
+        {Object.entries(SECTOR_POSITIONS).map(([name, coords]) => {
           const density = sectorDensities[name] || 50;
           const isIncident = activeIncidentSector === name;
 
@@ -63,7 +54,7 @@ export default function StadiumReplayMap({
                 {/* Micro heat status circle */}
                 <div className="flex items-center gap-1 mt-0.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${
-                    density >= 90 ? "bg-danger animate-ping" : density >= 75 ? "bg-warning" : "bg-success"
+                    density >= DENSITY_CRITICAL_PCT ? "bg-danger animate-ping" : density >= DENSITY_WARNING_PCT ? "bg-warning" : "bg-success"
                   }`} />
                   <span className="text-[9px] font-bold text-zinc-400 font-mono">{density}%</span>
                 </div>

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Smartphone, ArrowLeft, Signal, Wifi, WifiOff, X } from "lucide-react";
 
-// Import custom subviews
 import BottomNav from "../../components/volunteer/BottomNav";
 import TaskBoard from "../../components/volunteer/TaskBoard";
 import ReportView from "../../components/volunteer/ReportView";
@@ -12,121 +11,74 @@ import MapView from "../../components/volunteer/MapView";
 import CopilotView from "../../components/volunteer/CopilotView";
 
 import { VolunteerTask } from "../../types/stadium";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  read: boolean;
-  priority: string;
-  type: string;
-  created_at: string;
-}
+import type { NotificationItem } from "../../lib/types";
+import {
+  API_BASE_URL,
+  VOLUNTEER_EMAIL,
+  VOLUNTEER_ID,
+  VOLUNTEER_ALERT_DISMISS_MS,
+  CACHE_KEY_TASKS,
+  CACHE_KEY_NOTIFICATIONS,
+  CACHE_KEY_OUTBOX,
+} from "../../lib/constants";
+import { useAuth } from "../../hooks/useAuth";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 export default function VolunteerCopilot() {
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
-  const [wsConnected, setWsConnected] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
   // Volunteer Data states
   const [tasks, setTasks] = useState<VolunteerTask[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  
+
   // Notification pop-up alerts
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-
   // Authenticate as Volunteer on mount
-  useEffect(() => {
-    async function loginAsVolunteer() {
-      try {
-        setLoading(true);
-        // Login as volunteer1
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: "volunteer1@fifa.com" }),
-        });
+  const { token, loading } = useAuth(
+    VOLUNTEER_EMAIL,
+    async (jwtToken: string) => {
+      await syncData(jwtToken, false);
+    },
+    () => {
+      // Fallback to cache immediately if backend down
+      setIsOffline(true);
+      loadFromCache();
+    },
+  );
 
-        if (!res.ok) throw new Error("Volunteer auth failed");
-        const data = await res.json();
-        setToken(data.access_token);
-
-        // Fetch initial values
-        await syncData(data.access_token, false);
-      } catch (err) {
-        console.error("Volunteer login failed:", err);
-        // Fallback to cache immediately if backend down
-        setIsOffline(true);
-        loadFromCache();
-      } finally {
-        setLoading(false);
-      }
-    }
-    loginAsVolunteer();
-
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, []);
+  // WebSocket message handler
+  const handleWsMessage = useCallback(
+    (rawEvent: { id: string; topic: string; timestamp?: string; payload: Record<string, unknown> }) => {
+      handleIncomingWsEvent(rawEvent);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token],
+  );
 
   // Establish WebSocket connection when online
-  useEffect(() => {
-    if (!token || isOffline) {
-      if (wsRef.current) {
-        wsRef.current.close();
-        setWsConnected(false);
-      }
-      return;
-    }
-
-    const socket = new WebSocket(`${WS_BASE_URL}/dashboard/ws`);
-    wsRef.current = socket;
-
-    socket.onopen = () => {
-      setWsConnected(true);
-      console.log("[WS] Volunteer Copilot connected to Event Bus");
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const rawEvent = JSON.parse(event.data);
-        handleIncomingWsEvent(rawEvent);
-      } catch (err) {
-        console.error("WS error parsing:", err);
-      }
-    };
-
-    socket.onclose = () => {
-      setWsConnected(false);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [token, isOffline]);
+  const { connected: wsConnected } = useWebSocket({
+    token,
+    onMessage: handleWsMessage,
+    disabled: isOffline,
+  });
 
   // Synchronize outbox when turning back online
   useEffect(() => {
     if (!isOffline && token) {
       syncOfflineOutbox();
     }
-  }, [isOffline]);
+  }, [isOffline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load datasets from LocalStorage
   const loadFromCache = () => {
     if (typeof window === "undefined") return;
-    const cachedTasks = localStorage.getItem("volunteer_tasks");
+    const cachedTasks = localStorage.getItem(CACHE_KEY_TASKS);
     if (cachedTasks) {
       setTasks(JSON.parse(cachedTasks));
     }
-    const cachedNotifs = localStorage.getItem("volunteer_notifications");
+    const cachedNotifs = localStorage.getItem(CACHE_KEY_NOTIFICATIONS);
     if (cachedNotifs) {
       setNotifications(JSON.parse(cachedNotifs));
     }
@@ -141,7 +93,7 @@ export default function VolunteerCopilot() {
       if (taskRes.ok) {
         const taskData = await taskRes.json();
         setTasks(taskData);
-        localStorage.setItem("volunteer_tasks", JSON.stringify(taskData));
+        localStorage.setItem(CACHE_KEY_TASKS, JSON.stringify(taskData));
       }
 
       // 2. Fetch my notifications
@@ -149,7 +101,7 @@ export default function VolunteerCopilot() {
       if (notifRes.ok) {
         const notifData = await notifRes.json();
         setNotifications(notifData.notifications);
-        localStorage.setItem("volunteer_notifications", JSON.stringify(notifData.notifications));
+        localStorage.setItem(CACHE_KEY_NOTIFICATIONS, JSON.stringify(notifData.notifications));
       }
 
       if (showBanner) {
@@ -162,22 +114,19 @@ export default function VolunteerCopilot() {
   }
 
   // Handle incoming websocket dispatches
-  function handleIncomingWsEvent(event: any) {
-    const topic = event.topic || "";
-    const payload = event.payload || {};
+  function handleIncomingWsEvent(event: Record<string, unknown>) {
+    const topic = (event.topic as string) || "";
+    const payload = (event.payload as Record<string, unknown>) || {};
 
-    // When operations raises a task dispatch warning (e.g. system notifies a volunteer)
-    if (topic === "volunteer.position" && payload.volunteer_id === "V001") {
-      // Re-trigger task fetch to show the newly assigned task
+    if (topic === "volunteer.position" && payload.volunteer_id === VOLUNTEER_ID) {
       if (token) syncData(token, false);
       
       setAlertMessage("New Dispatch: Check your board for a new assigned task!");
       dismissAlert();
     }
 
-    else if (topic === "incident.resolved" && payload.volunteer_id === "V001") {
-      // Mark local tasks related to this incident as completed
-      setTasks((prev) => prev.filter((t) => t.incidentId !== payload.incident_id));
+    else if (topic === "incident.resolved" && payload.volunteer_id === VOLUNTEER_ID) {
+      setTasks((prev) => prev.filter((t) => t.incidentId !== (payload.incident_id as string)));
       setAlertMessage("Operations Alert: Incident has been resolved. You are cleared.");
       dismissAlert();
     }
@@ -186,7 +135,7 @@ export default function VolunteerCopilot() {
   const dismissAlert = () => {
     setTimeout(() => {
       setAlertMessage(null);
-    }, 6000);
+    }, VOLUNTEER_ALERT_DISMISS_MS);
   };
 
   // SOS/Incident Report Dispatcher
@@ -198,15 +147,14 @@ export default function VolunteerCopilot() {
     photo?: string;
   }) => {
     if (isOffline) {
-      // Save incident to offline outbox cache
       const outboxItem = {
         ...incident,
         id: `outbox-${Date.now()}`,
         timestamp: new Date().toISOString(),
       };
-      const currentOutbox = JSON.parse(localStorage.getItem("volunteer_outbox") || "[]");
+      const currentOutbox = JSON.parse(localStorage.getItem(CACHE_KEY_OUTBOX) || "[]");
       const nextOutbox = [...currentOutbox, outboxItem];
-      localStorage.setItem("volunteer_outbox", JSON.stringify(nextOutbox));
+      localStorage.setItem(CACHE_KEY_OUTBOX, JSON.stringify(nextOutbox));
 
       setAlertMessage("Offline Alert: Issue queued in outbox. Switch online to sync.");
       dismissAlert();
@@ -241,7 +189,7 @@ export default function VolunteerCopilot() {
 
   // Sync offline outbox to DB
   async function syncOfflineOutbox() {
-    const outbox = JSON.parse(localStorage.getItem("volunteer_outbox") || "[]");
+    const outbox = JSON.parse(localStorage.getItem(CACHE_KEY_OUTBOX) || "[]");
     if (outbox.length === 0) return;
 
     setAlertMessage("Syncing queued outbox incidents...");
@@ -269,7 +217,7 @@ export default function VolunteerCopilot() {
     }
 
     if (successCount > 0) {
-      localStorage.setItem("volunteer_outbox", "[]");
+      localStorage.setItem(CACHE_KEY_OUTBOX, "[]");
       setAlertMessage(`Sync Done: ${successCount} outbox incidents sent successfully.`);
       dismissAlert();
       syncData(token, false);

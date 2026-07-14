@@ -2,33 +2,27 @@
 
 import React, { useState } from "react";
 import { QrCode, MapPin, Bus, Car, Check } from "lucide-react";
+import type { ParkingItem, TransportItem } from "../../lib/types";
 
-interface ParkingItem {
-  name: string;
-  available_spots: number;
-  status: string;
-  occupancy_pct: number;
-}
-
-interface TransportItem {
-  route: string;
-  type: string;
-  status: string;
-  current_stop: string;
-  seats_available: number;
+interface SeatLocation {
+  section: string;
+  row: string;
+  seat: string;
+  gate: string;
+  zone: string;
+  directions: string;
 }
 
 interface HomeViewProps {
   parkingLots: ParkingItem[];
   transitVehicles: TransportItem[];
-  _sectors: Array<{ sector: string; density_pct: number; wait_time_seconds: number }>;
 }
 
-export default function HomeView({ parkingLots = [], transitVehicles = [], _sectors = [] }: HomeViewProps) {
+export default function HomeView({ parkingLots = [], transitVehicles = [] }: HomeViewProps) {
   const [section, setSection] = useState("");
   const [row, setRow] = useState("");
   const [seat, setSeat] = useState("");
-  const [seatLocation, setSeatLocation] = useState<any | null>(null);
+  const [seatLocation, setSeatLocation] = useState<SeatLocation | null>(null);
 
   const handleLocateSeat = (e: React.FormEvent) => {
     e.preventDefault();

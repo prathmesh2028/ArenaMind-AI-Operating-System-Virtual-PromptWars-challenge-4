@@ -1,21 +1,12 @@
 import React from "react";
 import { DoorOpen, AlertTriangle } from "lucide-react";
-
-interface SectorData {
-  sector: string;
-  count: number;
-  capacity: number;
-  density: number;
-  status: string; // NORMAL | WARNING | CRITICAL
-}
-
-interface GateData {
-  gate: string;
-  queueDepth: number;
-  serviceRate: number;
-  waitTime: number;
-  malfunctioning: boolean;
-}
+import type { SectorData, GateData } from "../../lib/types";
+import { getDensityColor, getDensityProgressColor } from "../../lib/utils";
+import {
+  DENSITY_CRITICAL_THRESHOLD,
+  DENSITY_WARNING_THRESHOLD,
+  DENSITY_WARNING_PCT,
+} from "../../lib/constants";
 
 interface StadiumHeatmapProps {
   sectors: SectorData[];
@@ -23,18 +14,6 @@ interface StadiumHeatmapProps {
 }
 
 export default function StadiumHeatmap({ sectors = [], gates = [] }: StadiumHeatmapProps) {
-  const getDensityColor = (density: number) => {
-    if (density >= 0.90) return "from-danger/10 to-danger/5 border-danger/40 text-danger shadow-[0_0_12px_rgba(244,63,94,0.15)] animate-pulse";
-    if (density >= 0.80) return "from-warning/10 to-warning/5 border-warning/40 text-warning shadow-[0_0_12px_rgba(245,158,11,0.1)]";
-    return "from-success/10 to-success/5 border-success/30 text-success";
-  };
-
-  const getProgressColor = (density: number) => {
-    if (density >= 0.90) return "bg-danger shadow-[0_0_6px_#f43f5e]";
-    if (density >= 0.80) return "bg-warning shadow-[0_0_6px_#f59e0b]";
-    return "bg-success";
-  };
-
   const getGateStyle = (gate: GateData) => {
     if (gate.malfunctioning) return "border-danger bg-danger/5 text-danger animate-pulse";
     if (gate.queueDepth > 150) return "border-warning bg-warning/5 text-warning";
@@ -63,9 +42,9 @@ export default function StadiumHeatmap({ sectors = [], gates = [] }: StadiumHeat
                       {sec.sector}
                     </span>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                      sec.density >= 0.90
+                      sec.density >= DENSITY_CRITICAL_THRESHOLD
                         ? "bg-danger/25 text-danger"
-                        : sec.density >= 0.80
+                        : sec.density >= DENSITY_WARNING_THRESHOLD
                         ? "bg-warning/25 text-warning"
                         : "bg-success/25 text-success"
                     }`}>
@@ -86,7 +65,7 @@ export default function StadiumHeatmap({ sectors = [], gates = [] }: StadiumHeat
                     {/* Progress indicator */}
                     <div className="w-full bg-zinc-850 h-1.5 rounded-full overflow-hidden mb-2">
                       <div
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${getProgressColor(sec.density)}`}
+                        className={`h-full rounded-full transition-all duration-1000 ease-out ${getDensityProgressColor(sec.density)}`}
                         style={{ width: `${Math.min(100, densityPct)}%` }}
                       />
                     </div>
@@ -106,7 +85,7 @@ export default function StadiumHeatmap({ sectors = [], gates = [] }: StadiumHeat
           <div className="mt-5 p-4 rounded-xl bg-zinc-950/40 border border-zinc-800 flex items-center gap-3 text-xs">
             <DoorOpen className="w-5 h-5 text-primary shrink-0" />
             <p className="text-zinc-400 font-light leading-relaxed">
-              <strong>Interactive Crowd Rerouting:</strong> The Decision Engine automatically shifts stadium signage displays and redeploys wayfinding volunteers when any sector breaches the 80% warning mark.
+              <strong>Interactive Crowd Rerouting:</strong> The Decision Engine automatically shifts stadium signage displays and redeploys wayfinding volunteers when any sector breaches the {DENSITY_WARNING_PCT}% warning mark.
             </p>
           </div>
         </div>

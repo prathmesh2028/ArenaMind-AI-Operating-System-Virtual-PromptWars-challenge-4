@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import React from "react";
 import { ClipboardList, AlertCircle, Map, Bot } from "lucide-react";
 

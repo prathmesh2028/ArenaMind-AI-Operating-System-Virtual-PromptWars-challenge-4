@@ -1,15 +1,8 @@
 import React, { useState } from "react";
 import { AlertCircle, CheckCircle, Activity, Clock } from "lucide-react";
 import { Incident } from "../../types/stadium";
-
-interface TimelineEvent {
-  id: string;
-  time: string;
-  topic: string;
-  source: string;
-  message: string;
-  type: "raised" | "resolved" | "info" | "warning" | "error";
-}
+import type { TimelineEvent } from "../../lib/types";
+import { getPriorityStyle } from "../../lib/utils";
 
 interface IncidentsListProps {
   incidents: Incident[];
@@ -23,19 +16,6 @@ export default function IncidentsList({
   onResolve,
 }: IncidentsListProps) {
   const [activeTab, setActiveTab] = useState<"active" | "timeline">("active");
-
-  const getPriorityStyle = (priority: string) => {
-    switch (priority) {
-      case "CRITICAL":
-        return "bg-danger/10 border-danger/30 text-danger";
-      case "HIGH":
-        return "bg-orange-500/10 border-orange-500/30 text-orange-400";
-      case "MEDIUM":
-        return "bg-warning/10 border-warning/30 text-warning";
-      default:
-        return "bg-blue-500/10 border-blue-500/30 text-blue-400";
-    }
-  };
 
   const getTimelineEventStyle = (type: string) => {
     switch (type) {

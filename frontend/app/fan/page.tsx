@@ -1,122 +1,53 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { Smartphone, ArrowLeft, Signal, X } from "lucide-react";
 
-// Import custom subviews
 import BottomNav from "../../components/fan/BottomNav";
 import HomeView from "../../components/fan/HomeView";
 import FoodView from "../../components/fan/FoodView";
 import AssistantView from "../../components/fan/AssistantView";
 import EmergencyView from "../../components/fan/EmergencyView";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
-
-interface ParkingItem {
-  name: string;
-  available_spots: number;
-  status: string;
-  occupancy_pct: number;
-}
-
-interface TransportItem {
-  route: string;
-  type: string;
-  status: string;
-  current_stop: string;
-  seats_available: number;
-}
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  read: boolean;
-  priority: string;
-  type: string;
-  created_at: string;
-}
+import type { ParkingItem, TransportItem, NotificationItem, SectorData } from "../../lib/types";
+import { API_BASE_URL, FAN_EMAIL, ALERT_DISMISS_DELAY_MS } from "../../lib/constants";
+import { useAuth } from "../../hooks/useAuth";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 export default function FanPortal() {
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("home");
-  const [wsConnected, setWsConnected] = useState(false);
 
   // Live data states
   const [parkingLots, setParkingLots] = useState<ParkingItem[]>([]);
   const [transitVehicles, setTransitVehicles] = useState<TransportItem[]>([]);
-  const [sectors, setSectors] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<SectorData[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  
+
   // Flash banner notification popup
   const [incomingAlert, setIncomingAlert] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-
   // Authenticate as FAN and fetch initial data
-  useEffect(() => {
-    async function loginAsFan() {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: "fan1@gmail.com" }),
-        });
+  const { token, loading } = useAuth(
+    FAN_EMAIL,
+    async (jwtToken: string) => {
+      await fetchFanData(jwtToken);
+    },
+  );
 
-        if (!res.ok) throw new Error();
+  // WebSocket handler
+  const handleWsMessage = useCallback(
+    (rawEvent: { id: string; topic: string; timestamp?: string; payload: Record<string, unknown> }) => {
+      handleIncomingWsEvent(rawEvent);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
-        const data = await res.json();
-        setToken(data.access_token);
-
-        // Fetch initial data
-        await fetchFanData(data.access_token);
-      } catch (err) {
-        console.error("Fan initialization failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loginAsFan();
-
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, []);
-
-  // Establish WebSocket connection once token is available
-  useEffect(() => {
-    if (!token) return;
-
-    const socket = new WebSocket(`${WS_BASE_URL}/dashboard/ws`);
-    wsRef.current = socket;
-
-    socket.onopen = () => {
-      setWsConnected(true);
-      console.log("[WS] Fan Portal telemetry connected");
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const rawEvent = JSON.parse(event.data);
-        handleIncomingWsEvent(rawEvent);
-      } catch (err) {
-        console.error("WS parse error:", err);
-      }
-    };
-
-    socket.onclose = () => {
-      setWsConnected(false);
-      console.log("[WS] Fan connection lost");
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [token]);
+  const { connected: wsConnected } = useWebSocket({
+    token,
+    onMessage: handleWsMessage,
+  });
 
   async function fetchFanData(jwtToken: string) {
     const headers = { Authorization: `Bearer ${jwtToken}` };
@@ -153,55 +84,78 @@ export default function FanPortal() {
     }
   }
 
-  function handleIncomingWsEvent(event: any) {
-    const topic = event.topic || "";
-    const payload = event.payload || {};
+  function handleIncomingWsEvent(event: Record<string, unknown>) {
+    const topic = (event.topic as string) || "";
+    const payload = (event.payload as Record<string, unknown>) || {};
 
     if (topic === "parking.tick") {
       setParkingLots((prev) =>
         prev.map((lot) =>
-          lot.name === payload.lot
-            ? { ...lot, available_spots: payload.available, occupancy_pct: payload.pct_full, status: payload.status }
-            : lot
-        )
+          lot.name === (payload.lot as string)
+            ? {
+                ...lot,
+                available_spots: payload.available as number,
+                occupancy_pct: payload.pct_full as number,
+                status: payload.status as string,
+              }
+            : lot,
+        ),
       );
-    } 
-    
-    else if (topic === "transport.tick") {
+    } else if (topic === "transport.tick") {
       setTransitVehicles((prev) => {
-        const exists = prev.some((v) => v.route === payload.route);
+        const route = payload.route as string;
+        const exists = prev.some((v) => v.route === route);
         if (!exists) {
-          return [...prev, { route: payload.route, type: payload.type, status: payload.status, current_stop: payload.current_stop, seats_available: 100 - payload.occupancy_pct }];
+          return [
+            ...prev,
+            {
+              route,
+              type: payload.type as string,
+              status: payload.status as string,
+              current_stop: payload.current_stop as string,
+              seats_available: 100 - (payload.occupancy_pct as number),
+            },
+          ];
         }
         return prev.map((v) =>
-          v.route === payload.route
-            ? { ...v, status: payload.status, current_stop: payload.current_stop, seats_available: 100 - payload.occupancy_pct }
-            : v
+          v.route === route
+            ? {
+                ...v,
+                status: payload.status as string,
+                current_stop: payload.current_stop as string,
+                seats_available: 100 - (payload.occupancy_pct as number),
+              }
+            : v,
         );
       });
-    }
-
-    else if (topic === "crowd.tick") {
+    } else if (topic === "crowd.tick") {
       setSectors((prev) =>
         prev.map((sec) =>
-          sec.sector === payload.sector
-            ? { ...sec, density_pct: Math.round(payload.density * 100), wait_time_seconds: payload.wait_time_seconds, status: payload.status }
-            : sec
-        )
+          sec.sector === (payload.sector as string)
+            ? {
+                ...sec,
+                density: payload.density as number,
+                status: (payload.status as string) || sec.status,
+              }
+            : sec,
+        ),
       );
-    }
-
-    // Capture safety notifications/alerts and trigger top banner
-    else if (topic === "weather.heat_stress" || topic === "crowd.density.critical" || topic === "incident.resolved" || topic === "gate.malfunction") {
-      let alertMsg = payload.message || `System alert triggered on topic ${topic}`;
+    } else if (
+      topic === "weather.heat_stress" ||
+      topic === "crowd.density.critical" ||
+      topic === "incident.resolved" ||
+      topic === "gate.malfunction"
+    ) {
+      let alertMsg =
+        (payload.message as string) || `System alert triggered on topic ${topic}`;
       if (topic === "incident.resolved") {
-        alertMsg = "Safety Notice: Reported incident has been successfully resolved by field responders.";
+        alertMsg =
+          "Safety Notice: Reported incident has been successfully resolved by field responders.";
       }
       setIncomingAlert(alertMsg);
 
-      // Add to notifications roster locally
       const localNotif: NotificationItem = {
-        id: event.id,
+        id: event.id as string,
         title: topic.replace(/\./g, " ").toUpperCase(),
         message: alertMsg,
         read: false,
@@ -211,15 +165,13 @@ export default function FanPortal() {
       };
       setNotifications((prev) => [localNotif, ...prev]);
 
-      // Vibrate if supported
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate([100, 50, 100]);
       }
 
-      // Dismiss banner after 7 seconds
       setTimeout(() => {
         setIncomingAlert(null);
-      }, 7000);
+      }, ALERT_DISMISS_DELAY_MS);
     }
   }
 
@@ -295,7 +247,7 @@ export default function FanPortal() {
         {/* Main Content sheet */}
         <div className="flex-1 overflow-y-auto px-5 py-4 z-10 bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-950">
           {activeTab === "home" ? (
-            <HomeView parkingLots={parkingLots} transitVehicles={transitVehicles} _sectors={sectors} />
+            <HomeView parkingLots={parkingLots} transitVehicles={transitVehicles} />
           ) : activeTab === "food" ? (
             <FoodView />
           ) : activeTab === "assistant" ? (

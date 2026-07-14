@@ -1,5 +1,7 @@
 import React from "react";
 import { Shield, Users, Bus, Zap } from "lucide-react";
+import { getHealthColor, getHealthStrokeClass } from "../../lib/utils";
+import { HEALTH_OPTIMAL_THRESHOLD, HEALTH_WARNING_THRESHOLD } from "../../lib/constants";
 
 interface HealthScoreProps {
   globalScore: number;
@@ -20,18 +22,6 @@ export default function HealthScore({
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (globalScore / 100) * circumference;
-
-  const getHealthColor = (score: number) => {
-    if (score >= 90) return "text-success border-success/20 bg-success/5";
-    if (score >= 75) return "text-warning border-warning/20 bg-warning/5";
-    return "text-danger border-danger/20 bg-danger/5";
-  };
-
-  const getHealthColorSvg = (score: number) => {
-    if (score >= 90) return "stroke-success";
-    if (score >= 75) return "stroke-warning";
-    return "stroke-danger";
-  };
 
   return (
     <div className="glass rounded-2xl p-6 flex flex-col justify-between h-full relative overflow-hidden">
@@ -59,7 +49,7 @@ export default function HealthScore({
                 cx="72"
                 cy="72"
                 r={radius}
-                className={`transition-all duration-1000 ease-out ${getHealthColorSvg(globalScore)}`}
+                className={`transition-all duration-1000 ease-out ${getHealthStrokeClass(globalScore)}`}
                 strokeWidth="10"
                 fill="transparent"
                 strokeDasharray={circumference}
@@ -82,10 +72,10 @@ export default function HealthScore({
             <div className="text-xs text-zinc-500 font-light mb-1">Status Rating</div>
             <div className="text-xl font-bold text-white flex items-center gap-2 justify-center md:justify-start">
               <span className="relative flex h-3 w-3">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${globalScore >= 75 ? 'bg-success' : 'bg-danger'}`}></span>
-                <span className={`relative inline-flex rounded-full h-3 w-3 ${globalScore >= 90 ? 'bg-success' : globalScore >= 75 ? 'bg-warning' : 'bg-danger'}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${globalScore >= HEALTH_WARNING_THRESHOLD ? 'bg-success' : 'bg-danger'}`}></span>
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${globalScore >= HEALTH_OPTIMAL_THRESHOLD ? 'bg-success' : globalScore >= HEALTH_WARNING_THRESHOLD ? 'bg-warning' : 'bg-danger'}`}></span>
               </span>
-              {globalScore >= 90 ? "Optimal Operations" : globalScore >= 75 ? "Elevated Load" : "Critical Emergency"}
+              {globalScore >= HEALTH_OPTIMAL_THRESHOLD ? "Optimal Operations" : globalScore >= HEALTH_WARNING_THRESHOLD ? "Elevated Load" : "Critical Emergency"}
             </div>
             <p className="text-xs text-zinc-400 font-light mt-2 max-w-xs leading-relaxed">
               Real-time calculations derived from density telemetry, transport delay headways, grid load bounds, and active incident priorities.

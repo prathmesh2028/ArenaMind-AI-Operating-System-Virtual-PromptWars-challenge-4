@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Bot, ArrowLeft, RefreshCw, Radio } from "lucide-react";
 
-// Import custom dashboard components
 import HealthScore from "../../components/dashboard/HealthScore";
 import IncidentsList from "../../components/dashboard/IncidentsList";
 import DecisionFeed from "../../components/dashboard/DecisionFeed";
@@ -13,51 +12,38 @@ import StadiumHeatmap from "../../components/dashboard/StadiumHeatmap";
 import AiMissionControl from "../../components/dashboard/AiMissionControl";
 
 import { Incident, Decision } from "../../types/stadium";
+import type { SectorData, GateData, TimelineEvent, TimelineEventType, PredictionItem } from "../../lib/types";
+import {
+  API_BASE_URL,
+  MANAGER_EMAIL,
+  SECURITY_INCIDENT_DEDUCTION,
+  SECURITY_CRITICAL_DEDUCTION,
+  TRANSIT_DELAY_DEDUCTION,
+  TRANSPORT_DELAY_PROBABILITY,
+  ENERGY_ALERT_DEDUCTION,
+  ENERGY_FORECAST_PROBABILITY,
+  CROWD_HEALTH_DENSITY_FACTOR,
+  TRANSIT_BASE_SCORE,
+  ENERGY_BASE_SCORE,
+  TELEMETRY_HISTORY_LIMIT,
+} from "../../lib/constants";
+import { clampScore } from "../../lib/utils";
+import { useAuth } from "../../hooks/useAuth";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
-interface Sector {
-  sector: string;
-  count: number;
-  capacity: number;
-  density: number;
-  status: string;
-}
-
-interface Gate {
-  gate: string;
-  queueDepth: number;
-  serviceRate: number;
-  waitTime: number;
-  malfunctioning: boolean;
-}
-
-interface TimelineEvent {
-  id: string;
-  time: string;
-  topic: string;
-  source: string;
-  message: string;
-  type: "raised" | "resolved" | "info" | "warning" | "error";
-}
 
 export default function OperationsDashboard() {
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [wsConnected, setWsConnected] = useState(false);
-
-  // Telemetry data states
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [gates, setGates] = useState<Gate[]>([]);
+  const [sectors, setSectors] = useState<SectorData[]>([]);
+  const [gates, setGates] = useState<GateData[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [predictions, setPredictions] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
 
   // Telemetry history lists for Recharts
-  const [crowdHistory, setCrowdHistory] = useState<any[]>([]);
-  const [energyHistory, setEnergyHistory] = useState<any[]>([]);
+  const [crowdHistory, setCrowdHistory] = useState<Record<string, unknown>[]>([]);
+  const [energyHistory, setEnergyHistory] = useState<Record<string, number | string>[]>([]);
 
   // Health scores
   const [healthScores, setHealthScores] = useState({
@@ -68,180 +54,131 @@ export default function OperationsDashboard() {
     energy: 92,
   });
 
-  const wsRef = useRef<WebSocket | null>(null);
+  // Authenticate and fetch initial data
+  const { token, loading, setLoading } = useAuth(
+    MANAGER_EMAIL,
+    async (jwtToken: string) => {
+      await fetchInitialDashboard(jwtToken);
+    },
+  );
 
-  // Authenticate and retrieve token on mount
-  useEffect(() => {
-    async function loginAndFetch() {
-      try {
-        setLoading(true);
-        // Login as manager
-        const authRes = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: "manager@fifa.com" }),
-        });
-        if (!authRes.ok) throw new Error("Authentication failed");
-        
-        const authData = await authRes.json();
-        const jwtToken = authData.access_token;
-        setToken(jwtToken);
+  // Add event helper to timeline state
+  const addTimelineEvent = useCallback(
+    (id: string, topic: string, message: string, type: TimelineEventType) => {
+      const timeStr = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setTimeline((prev) => [
+        { id, time: timeStr, topic, source: "bus.event", message, type },
+        ...prev,
+      ]);
+    },
+    [],
+  );
 
-        // Fetch initial data
-        await fetchInitialDashboard(jwtToken);
-      } catch (err) {
-        console.error("Initialization error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loginAndFetch();
+  // WebSocket connection via shared hook
+  const handleWsMessage = useCallback(
+    (rawEvent: { id: string; topic: string; timestamp?: string; payload: Record<string, unknown> }) => {
+      handleIncomingWsEvent(rawEvent);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sectors],
+  );
 
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
+  const { connected: wsConnected } = useWebSocket({
+    token,
+    onMessage: handleWsMessage,
+  });
 
-  // Establish WebSocket connection once token is available
-  useEffect(() => {
-    if (!token) return;
-
-    let wsUrl = `${WS_BASE_URL}/dashboard/ws`;
-    const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
-
-    socket.onopen = () => {
-      setWsConnected(true);
-      console.log("[WS] Connected to dashboard telemetry stream");
-      addTimelineEvent("system", "ws", "Live WebSocket connection established with operating system.", "info");
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const rawEvent = JSON.parse(event.data);
-        handleIncomingWsEvent(rawEvent);
-      } catch (err) {
-        console.error("[WS] Error parsing message:", err);
-      }
-    };
-
-    socket.onclose = () => {
-      setWsConnected(false);
-      console.log("[WS] Connection closed");
-      addTimelineEvent("system", "ws", "WebSocket connection lost. Switched to REST fallback mode.", "warning");
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [token]);
-
-  // Recalculate health scores when telemetries update
-  useEffect(() => {
-    if (sectors.length === 0) return;
-
-    // 1. Crowd Health: drops if sector density increases
-    const avgDensity = sectors.reduce((sum, s) => sum + s.density, 0) / sectors.length;
-    const crowd = Math.max(0, Math.min(100, Math.round(100 - avgDensity * 45)));
-
-    // 2. Security Health: drops based on active incidents
-    const activeCount = incidents.filter((i) => i.status !== "RESOLVED").length;
-    const criticalCount = incidents.filter((i) => i.status !== "RESOLVED" && i.priority === "CRITICAL").length;
-    const security = Math.max(0, Math.min(100, Math.round(100 - activeCount * 12 - criticalCount * 25)));
-
-    // 3. Transit Health: static mockup/dynamic evaluation
-    const transportDelayCount = predictions.filter((p) => p.type === "TRANSPORT_DELAY" && p.probability >= 0.70).length;
-    const transit = Math.max(0, Math.min(100, 98 - transportDelayCount * 15));
-
-    // 4. Energy Health: drops if active load exceeds threshold
-    const gridAlertCount = predictions.filter((p) => p.type === "ENERGY_FORECAST" && p.probability >= 0.75).length;
-    const energy = Math.max(0, Math.min(100, 94 - gridAlertCount * 10));
-
-    // 5. Global Score: overall composite index
-    const global = Math.round((crowd + security + transit + energy) / 4);
-
-    setHealthScores({ global, crowd, transit, security, energy });
-  }, [sectors, incidents, predictions]);
-
-  // Fetch initial REST APIs
+  /** Fetch initial REST APIs for the dashboard. */
   async function fetchInitialDashboard(jwtToken: string) {
     const headers = { Authorization: `Bearer ${jwtToken}` };
 
     try {
-      // 1. Dashboard core endpoint
       const dashRes = await fetch(`${API_BASE_URL}/dashboard`, { headers });
       if (dashRes.ok) {
         const dash = await dashRes.json();
-        
-        // Populate sectors density
-        const initialSectors = dash.sectors.map((s: any) => ({
-          sector: s.sector,
-          count: s.count,
-          capacity: s.capacity,
-          density: s.density,
-          status: s.status,
-        }));
+
+        const initialSectors: SectorData[] = dash.sectors.map(
+          (s: Record<string, unknown>) => ({
+            sector: s.sector as string,
+            count: s.count as number,
+            capacity: s.capacity as number,
+            density: s.density as number,
+            status: s.status as string,
+          }),
+        );
         setSectors(initialSectors);
 
-        // Pre-fill crowdHistory
         const baseTimestamp = new Date().toISOString();
-        const initialCrowdHistory = [{
-          timestamp: baseTimestamp,
-          ...initialSectors.reduce((acc: any, s: any) => {
-            acc[s.sector] = Math.round(s.density * 100);
-            return acc;
-          }, {}),
-        }];
+        const initialCrowdHistory = [
+          {
+            timestamp: baseTimestamp,
+            ...initialSectors.reduce<Record<string, number>>((acc, s) => {
+              acc[s.sector] = Math.round(s.density * 100);
+              return acc;
+            }, {}),
+          },
+        ];
         setCrowdHistory(initialCrowdHistory);
 
-        // Pre-fill energy history
-        const initialEnergyHistory = [{
-          timestamp: baseTimestamp,
-          active_power: dash.energy.reduce((sum: number, e: any) => sum + e.active_power_kw, 0),
-          solar_offset: dash.energy.reduce((sum: number, e: any) => sum + (e.solar_offset_kw || 30), 0),
-        }];
+        const initialEnergyHistory = [
+          {
+            timestamp: baseTimestamp,
+            active_power: dash.energy.reduce(
+              (sum: number, e: Record<string, number>) => sum + e.active_power_kw,
+              0,
+            ),
+            solar_offset: dash.energy.reduce(
+              (sum: number, e: Record<string, number>) => sum + (e.solar_offset_kw || 30),
+              0,
+            ),
+          },
+        ];
         setEnergyHistory(initialEnergyHistory);
       }
 
-      // 2. Active Incidents
       const incRes = await fetch(`${API_BASE_URL}/incidents?page_size=30`, { headers });
       if (incRes.ok) {
         const incData = await incRes.json();
-        setIncidents(incData.items.filter((i: any) => i.status !== "RESOLVED"));
+        setIncidents(
+          incData.items.filter((i: Incident) => i.status !== "RESOLVED"),
+        );
       }
 
-      // 3. Decisions Feed
       const decRes = await fetch(`${API_BASE_URL}/decisions?page_size=20`, { headers });
       if (decRes.ok) {
         const decData = await decRes.json();
         setDecisions(decData.items);
       }
 
-      // 4. Heuristic Predictions
       const predRes = await fetch(`${API_BASE_URL}/predictions?page_size=30`, { headers });
       if (predRes.ok) {
         const predData = await predRes.json();
         setPredictions(predData.items);
       }
 
-      // 5. Crowd History (Fetch 15 previous records to populate line chart)
-      const historyRes = await fetch(`${API_BASE_URL}/operations/crowd/history?limit=60`, { headers });
+      const historyRes = await fetch(
+        `${API_BASE_URL}/operations/crowd/history?limit=60`,
+        { headers },
+      );
       if (historyRes.ok) {
         const histData = await historyRes.json();
-        // Group by timestamp
-        const grouped: Record<string, any> = {};
-        histData.records.forEach((r: any) => {
-          if (!grouped[r.timestamp]) {
-            grouped[r.timestamp] = { timestamp: r.timestamp };
+        const grouped: Record<string, Record<string, unknown>> = {};
+        histData.records.forEach((r: Record<string, unknown>) => {
+          const ts = r.timestamp as string;
+          if (!grouped[ts]) {
+            grouped[ts] = { timestamp: ts };
           }
-          grouped[r.timestamp][r.sector] = r.density;
+          grouped[ts][r.sector as string] = r.density;
         });
 
-        // Convert back to sorted list
-        const list = Object.values(grouped).sort((a: any, b: any) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        const list = Object.values(grouped).sort(
+          (a, b) =>
+            new Date(a.timestamp as string).getTime() -
+            new Date(b.timestamp as string).getTime(),
         );
         setCrowdHistory(list.slice(-12));
       }
@@ -250,63 +187,91 @@ export default function OperationsDashboard() {
     }
   }
 
+  // Recalculate health scores when telemetries update
+  useEffect(() => {
+    if (sectors.length === 0) return;
+
+    const avgDensity =
+      sectors.reduce((sum, s) => sum + s.density, 0) / sectors.length;
+    const crowd = clampScore(100 - avgDensity * CROWD_HEALTH_DENSITY_FACTOR);
+
+    const activeCount = incidents.filter((i) => i.status !== "RESOLVED").length;
+    const criticalCount = incidents.filter(
+      (i) => i.status !== "RESOLVED" && i.priority === "CRITICAL",
+    ).length;
+    const security = clampScore(
+      100 - activeCount * SECURITY_INCIDENT_DEDUCTION - criticalCount * SECURITY_CRITICAL_DEDUCTION,
+    );
+
+    const transportDelayCount = predictions.filter(
+      (p) => p.type === "TRANSPORT_DELAY" && p.probability >= TRANSPORT_DELAY_PROBABILITY,
+    ).length;
+    const transit = clampScore(TRANSIT_BASE_SCORE - transportDelayCount * TRANSIT_DELAY_DEDUCTION);
+
+    const gridAlertCount = predictions.filter(
+      (p) => p.type === "ENERGY_FORECAST" && p.probability >= ENERGY_FORECAST_PROBABILITY,
+    ).length;
+    const energy = clampScore(ENERGY_BASE_SCORE - gridAlertCount * ENERGY_ALERT_DEDUCTION);
+
+    const global = Math.round((crowd + security + transit + energy) / 4);
+
+    setHealthScores({ global, crowd, transit, security, energy });
+  }, [sectors, incidents, predictions]);
+
   // Handle incoming WebSocket messages dynamically
-  function handleIncomingWsEvent(event: any) {
-    const topic = event.topic || "";
-    const payload = event.payload || {};
-    const timestamp = event.timestamp || new Date().toISOString();
+  function handleIncomingWsEvent(event: Record<string, unknown>) {
+    const topic = (event.topic as string) || "";
+    const payload = (event.payload as Record<string, unknown>) || {};
+    const timestamp = (event.timestamp as string) || new Date().toISOString();
 
     if (topic === "crowd.tick") {
-      const sectorName = payload.sector;
-      const count = payload.count;
-      const density = payload.density;
-      const status = payload.status || "NORMAL";
+      const sectorName = payload.sector as string;
+      const count = payload.count as number;
+      const density = payload.density as number;
+      const status = (payload.status as string) || "NORMAL";
 
-      // 1. Update sectors density in heatmap
       setSectors((prev) => {
         const exists = prev.some((s) => s.sector === sectorName);
         if (!exists) {
-          return [...prev, { sector: sectorName, count, capacity: payload.capacity || 8000, density, status }];
+          return [...prev, { sector: sectorName, count, capacity: (payload.capacity as number) || 8000, density, status }];
         }
         return prev.map((s) =>
-          s.sector === sectorName ? { ...s, count, density, status } : s
+          s.sector === sectorName ? { ...s, count, density, status } : s,
         );
       });
 
-      // 2. Update Recharts crowd history line chart
       setCrowdHistory((prev) => {
-        // Find if we already have a record for this timestamp
-        const lastRecord = prev[prev.length - 1];
-        const isSameTime = lastRecord && (new Date(lastRecord.timestamp).getTime() === new Date(timestamp).getTime());
+        const lastRecord = prev[prev.length - 1] as Record<string, unknown> | undefined;
+        const isSameTime =
+          lastRecord &&
+          new Date(lastRecord.timestamp as string).getTime() ===
+            new Date(timestamp).getTime();
 
-        if (isSameTime) {
+        if (isSameTime && lastRecord) {
           const updated = { ...lastRecord, [sectorName]: Math.round(density * 100) };
           return [...prev.slice(0, -1), updated];
-        } else {
-          const newRecord: Record<string, any> = {
-            timestamp,
-            [sectorName]: Math.round(density * 100),
-          };
-          // Carry over other sectors from previous record for smooth lines
-          if (lastRecord) {
-            sectors.forEach((s) => {
-              if (s.sector !== sectorName) {
-                newRecord[s.sector] = (lastRecord as any)[s.sector] || Math.round(s.density * 100);
-              }
-            });
-          }
-          const nextHistory = [...prev, newRecord];
-          return nextHistory.slice(-15); // keep last 15
         }
-      });
-    }
 
-    else if (topic === "gate.queue.tick") {
-      const gateName = payload.gate;
-      const queueDepth = payload.queue_depth;
-      const serviceRate = payload.service_rate_per_min;
-      const waitTime = payload.wait_time_seconds;
-      const malfunctioning = payload.malfunctioning;
+        const newRecord: Record<string, unknown> = {
+          timestamp,
+          [sectorName]: Math.round(density * 100),
+        };
+        if (lastRecord) {
+          sectors.forEach((s) => {
+            if (s.sector !== sectorName) {
+              newRecord[s.sector] =
+                (lastRecord[s.sector] as number) || Math.round(s.density * 100);
+            }
+          });
+        }
+        return [...prev, newRecord].slice(-TELEMETRY_HISTORY_LIMIT);
+      });
+    } else if (topic === "gate.queue.tick") {
+      const gateName = payload.gate as string;
+      const queueDepth = payload.queue_depth as number;
+      const serviceRate = payload.service_rate_per_min as number;
+      const waitTime = payload.wait_time_seconds as number;
+      const malfunctioning = payload.malfunctioning as boolean;
 
       setGates((prev) => {
         const exists = prev.some((g) => g.gate === gateName);
@@ -314,114 +279,96 @@ export default function OperationsDashboard() {
           return [...prev, { gate: gateName, queueDepth, serviceRate, waitTime, malfunctioning }];
         }
         return prev.map((g) =>
-          g.gate === gateName ? { ...g, queueDepth, serviceRate, waitTime, malfunctioning } : g
+          g.gate === gateName ? { ...g, queueDepth, serviceRate, waitTime, malfunctioning } : g,
         );
       });
 
       if (malfunctioning) {
         addTimelineEvent(
-          event.id,
+          event.id as string,
           topic,
           `Turnstile failure detected at checkpoint ${gateName}. Ingress rates restricted.`,
-          "error"
+          "error",
         );
       }
-    }
+    } else if (topic === "energy.tick") {
+      const activeKw = payload.active_power_kw as number;
+      const solarKw = (payload.solar_offset_kw as number) || 30;
 
-    else if (topic === "energy.tick") {
-      const activeKw = payload.active_power_kw;
-      const solarKw = payload.solar_offset_kw || 30;
-
-      // Update Recharts energy area graph
       setEnergyHistory((prev) => {
         const lastRecord = prev[prev.length - 1];
-        const isSameTime = lastRecord && (new Date(lastRecord.timestamp).getTime() === new Date(timestamp).getTime());
+        const isSameTime =
+          lastRecord &&
+          new Date(lastRecord.timestamp as string).getTime() ===
+            new Date(timestamp).getTime();
 
-        if (isSameTime) {
+        if (isSameTime && lastRecord) {
           const updated = {
             ...lastRecord,
-            active_power: lastRecord.active_power + activeKw,
-            solar_offset: lastRecord.solar_offset + solarKw,
+            active_power: (lastRecord.active_power as number) + activeKw,
+            solar_offset: (lastRecord.solar_offset as number) + solarKw,
           };
           return [...prev.slice(0, -1), updated];
-        } else {
-          const newRecord = {
-            timestamp,
-            active_power: activeKw,
-            solar_offset: solarKw,
-          };
-          const nextHistory = [...prev, newRecord];
-          return nextHistory.slice(-15);
         }
-      });
-    }
 
-    else if (topic === "incident.raised") {
+        const newRecord = { timestamp, active_power: activeKw, solar_offset: solarKw };
+        return [...prev, newRecord].slice(-TELEMETRY_HISTORY_LIMIT);
+      });
+    } else if (topic === "incident.raised") {
       const newInc: Incident = {
-        id: payload.incident_id,
-        title: payload.title,
-        description: payload.description,
+        id: payload.incident_id as string,
+        title: payload.title as string,
+        description: payload.description as string,
         status: "ACTIVE",
-        priority: payload.priority,
-        sector: payload.sector,
+        priority: payload.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+        sector: payload.sector as string,
         createdAt: timestamp,
       };
 
       setIncidents((prev) => [newInc, ...prev.filter((i) => i.id !== newInc.id)]);
       addTimelineEvent(
-        event.id,
+        event.id as string,
         topic,
         `New ${newInc.priority} incident raised: "${newInc.title}" in ${newInc.sector}.`,
-        newInc.priority === "CRITICAL" || newInc.priority === "HIGH" ? "error" : "raised"
+        newInc.priority === "CRITICAL" || newInc.priority === "HIGH" ? "error" : "raised",
       );
-    }
-
-    else if (topic === "incident.resolved") {
-      const incId = payload.incident_id;
+    } else if (topic === "incident.resolved") {
+      const incId = payload.incident_id as string;
       setIncidents((prev) => prev.filter((i) => i.id !== incId));
       addTimelineEvent(
-        event.id,
+        event.id as string,
         topic,
         `Incident ${incId.substring(0, 8)} successfully resolved by operations on-scene crew.`,
-        "resolved"
+        "resolved",
       );
-    }
-
-    else if (topic === "decision.created") {
+    } else if (topic === "decision.created") {
       const newDec: Decision = {
-        id: payload.id,
-        decision: payload.decision,
-        reason: payload.reason,
-        expected_impact: payload.expected_impact,
-        responsible_team: payload.responsible_team,
-        eta: payload.eta,
-        action_type: payload.action_type,
-        created_at: payload.created_at,
+        id: payload.id as string,
+        decision: payload.decision as string,
+        reason: payload.reason as string,
+        expected_impact: payload.expected_impact as string,
+        responsible_team: payload.responsible_team as string,
+        eta: payload.eta as number,
+        action_type: payload.action_type as string,
+        created_at: payload.created_at as string,
       };
 
       setDecisions((prev) => [newDec, ...prev.filter((d) => d.id !== newDec.id)]);
       addTimelineEvent(
-        event.id,
+        event.id as string,
         topic,
         `Mitigation rule triggered: [${newDec.action_type}] proposed to ${newDec.responsible_team}.`,
-        "warning"
+        "warning",
       );
+    } else if (
+      topic.includes("warning") ||
+      topic.includes("alert") ||
+      topic.includes("malfunction") ||
+      topic.includes("delay")
+    ) {
+      const msg = (payload.message as string) || `System alert triggered on topic ${topic}`;
+      addTimelineEvent(event.id as string, topic, msg, "warning");
     }
-
-    // Capture warnings or minor notifications
-    else if (topic.includes("warning") || topic.includes("alert") || topic.includes("malfunction") || topic.includes("delay")) {
-      const msg = payload.message || `System alert triggered on topic ${topic}`;
-      addTimelineEvent(event.id, topic, msg, "warning");
-    }
-  }
-
-  // Add event helper to timeline state
-  function addTimelineEvent(id: string, topic: string, message: string, type: any) {
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setTimeline((prev) => [
-      { id, time: timeStr, topic, source: "bus.event", message, type },
-      ...prev,
-    ]);
   }
 
   // Resolve active incident

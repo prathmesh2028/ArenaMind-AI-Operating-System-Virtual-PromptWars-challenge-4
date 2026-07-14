@@ -13,9 +13,11 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { formatTimestamp } from "../../lib/utils";
+import { SECTOR_CHART_COLORS } from "../../lib/constants";
 
 interface LiveChartsProps {
-  crowdHistory: Array<{ timestamp: string; [sector: string]: any }>;
+  crowdHistory: Array<{ timestamp: string; [sector: string]: unknown }>;
   energyHistory: Array<{ timestamp: string; active_power: number; solar_offset: number }>;
 }
 
@@ -35,17 +37,6 @@ export default function LiveCharts({ crowdHistory = [], energyHistory = [] }: Li
     );
   }
 
-  // Format tick labels for time axis
-  const formatTime = (timeStr: string) => {
-    if (!timeStr) return "";
-    try {
-      const date = new Date(timeStr);
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    } catch {
-      return timeStr;
-    }
-  };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
       {/* Crowd Density over time Chart */}
@@ -57,19 +48,19 @@ export default function LiveCharts({ crowdHistory = [], energyHistory = [] }: Li
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={crowdHistory} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.3} />
-              <XAxis dataKey="timestamp" tickFormatter={formatTime} stroke="#71717a" />
+              <XAxis dataKey="timestamp" tickFormatter={formatTimestamp} stroke="#71717a" />
               <YAxis stroke="#71717a" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
               <Tooltip
                 contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px" }}
                 labelFormatter={(label) => `Time: ${new Date(label).toLocaleTimeString()}`}
               />
               <Legend iconType="circle" />
-              <Line type="monotone" dataKey="Sector A" stroke="#6366f1" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Sector B" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Sector C" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Sector D" stroke="#f43f5e" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Sector E" stroke="#06b6d4" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Sector F" stroke="#a855f7" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector A" stroke={SECTOR_CHART_COLORS["Sector A"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector B" stroke={SECTOR_CHART_COLORS["Sector B"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector C" stroke={SECTOR_CHART_COLORS["Sector C"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector D" stroke={SECTOR_CHART_COLORS["Sector D"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector E" stroke={SECTOR_CHART_COLORS["Sector E"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Sector F" stroke={SECTOR_CHART_COLORS["Sector F"]} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -84,7 +75,7 @@ export default function LiveCharts({ crowdHistory = [], energyHistory = [] }: Li
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={energyHistory} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.3} />
-              <XAxis dataKey="timestamp" tickFormatter={formatTime} stroke="#71717a" />
+              <XAxis dataKey="timestamp" tickFormatter={formatTimestamp} stroke="#71717a" />
               <YAxis stroke="#71717a" />
               <Tooltip
                 contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px" }}

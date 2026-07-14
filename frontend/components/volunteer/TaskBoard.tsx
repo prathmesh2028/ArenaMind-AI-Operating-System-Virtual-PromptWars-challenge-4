@@ -1,8 +1,7 @@
-"use client";
-
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Play, Check, Clock } from "lucide-react";
 import { VolunteerTask } from "../../types/stadium";
+import { getPriorityStyle, formatStopwatch } from "../../lib/utils";
 
 interface TaskBoardProps {
   tasks: VolunteerTask[];
@@ -24,16 +23,10 @@ function ResponseTimer({ acceptedTime }: { acceptedTime: number }) {
     return () => clearInterval(interval);
   }, [acceptedTime]);
 
-  const formatTime = (totalSecs: number) => {
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div className="flex items-center gap-1 bg-warning/10 text-warning border border-warning/20 px-2 py-0.5 rounded text-[10px] font-bold">
       <Clock className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "3s" }} />
-      <span>Active: {formatTime(seconds)}</span>
+      <span>Active: {formatStopwatch(seconds)}</span>
     </div>
   );
 }
@@ -49,19 +42,6 @@ export default function TaskBoard({ tasks = [], onAccept, onComplete }: TaskBoar
       [id]: Date.now(),
     }));
     onAccept(id);
-  };
-
-  const getPriorityStyle = (priority: string) => {
-    switch (priority?.toUpperCase()) {
-      case "CRITICAL":
-        return "bg-danger/10 border-danger/30 text-danger";
-      case "HIGH":
-        return "bg-orange-500/10 border-orange-500/30 text-orange-400";
-      case "MEDIUM":
-        return "bg-warning/10 border-warning/30 text-warning";
-      default:
-        return "bg-zinc-800 border-zinc-700 text-zinc-400";
-    }
   };
 
   return (

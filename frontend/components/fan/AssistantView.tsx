@@ -2,19 +2,16 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Globe, Accessibility, Send, Bot, Volume2 } from "lucide-react";
-
-interface Message {
-  id: string;
-  sender: "user" | "bot";
-  text: string;
-}
+import type { ChatMessage } from "../../lib/types";
+import { API_BASE_URL } from "../../lib/constants";
+import { speakText } from "../../lib/utils";
 
 interface AssistantViewProps {
   apiUrl?: string;
   token?: string;
 }
 
-export default function AssistantView({ apiUrl = "http://localhost:8000", token }: AssistantViewProps) {
+export default function AssistantView({ apiUrl = API_BASE_URL, token }: AssistantViewProps) {
   const [activeMode, setActiveMode] = useState<"voice" | "translation" | "accessibility">("voice");
 
   // Voice Assistant states
@@ -29,21 +26,23 @@ export default function AssistantView({ apiUrl = "http://localhost:8000", token 
   const [transOutput, setTransOutput] = useState("");
 
   // Accessibility Chat states
-  const [accMessages, setAccMessages] = useState<Message[]>([
+  const [accMessages, setAccMessages] = useState<ChatMessage[]>([
     { id: "1", sender: "bot", text: "Welcome to Stadium Accessibility Services. I can guide you on wheelchair ramps, elevator sectors, sensory booths, and special headsets. Ask me any assistance questions." }
   ]);
   const [accInput, setAccInput] = useState("");
   const [accTyping, setAccTyping] = useState(false);
 
   // Web Speech API refs
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     // Initialize Web Speech Recognition
     if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recog = new SpeechRecognition();
+      const SpeechRecognitionCtor =
+        (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ??
+        (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+      if (SpeechRecognitionCtor) {
+        const recog = new SpeechRecognitionCtor();
         recog.continuous = false;
         recog.interimResults = false;
         recog.lang = "en-US";
@@ -54,13 +53,13 @@ export default function AssistantView({ apiUrl = "http://localhost:8000", token 
           setVoiceQuery("Listening...");
         };
 
-        recog.onresult = async (event: any) => {
+        recog.onresult = async (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
           setVoiceQuery(`"${transcript}"`);
           await processVoiceCommand(transcript);
         };
 
-        recog.onerror = (err: any) => {
+        recog.onerror = (err: SpeechRecognitionErrorEvent) => {
           console.error("Speech Recognition Error:", err);
           setIsListening(false);
           setAudioPulsing(false);
@@ -75,7 +74,7 @@ export default function AssistantView({ apiUrl = "http://localhost:8000", token 
         recognitionRef.current = recog;
       }
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleVoice = () => {
     if (isListening) {
@@ -105,16 +104,7 @@ export default function AssistantView({ apiUrl = "http://localhost:8000", token 
     }
   };
 
-  const speakText = (text: string) => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      // Cancel active speech
-      window.speechSynthesis.cancel();
-      const cleanText = text.replace(/\*\*|\[|\]/g, ""); // clean markdown markers
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+
 
   const processVoiceCommand = async (query: string) => {
     setVoiceResponse("Generating explanation...");
@@ -214,11 +204,11 @@ export default function AssistantView({ apiUrl = "http://localhost:8000", token 
     setAccInput("");
     setAccTyping(true);
 
-    const userMsg: Message = { id: `u-${Date.now()}`, sender: "user", text: userText };
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, sender: "user", text: userText };
     setAccMessages((prev) => [...prev, userMsg]);
 
     const botMsgId = `b-${Date.now()}`;
-    const initialBot: Message = { id: botMsgId, sender: "bot", text: "" };
+    const initialBot: ChatMessage = { id: botMsgId, sender: "bot", text: "" };
     setAccMessages((prev) => [...prev, initialBot]);
 
     try {

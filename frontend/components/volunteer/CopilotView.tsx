@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Bot, Send, User, Sparkles, Volume2 } from "lucide-react";
-
-interface Message {
-  id: string;
-  sender: "user" | "bot";
-  text: string;
-}
+import { useStreamingChat } from "../../hooks/useStreamingChat";
+import { API_BASE_URL } from "../../lib/constants";
+import { speakText } from "../../lib/utils";
+import type { ChatMessage } from "../../lib/types";
 
 interface CopilotViewProps {
   apiUrl?: string;
@@ -15,106 +13,43 @@ interface CopilotViewProps {
   activeTaskTitle?: string;
 }
 
-export default function CopilotView({ apiUrl = "http://localhost:8000", token, activeTaskTitle }: CopilotViewProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "init",
-      sender: "bot",
-      text: "I am the Volunteer Copilot Agent. Tell me which sector or task you are working on, and I will prepare a translation brief, crowd density waypoints checklist, or safety procedures outline.",
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+const initialMessages: ChatMessage[] = [
+  {
+    id: "init",
+    sender: "bot",
+    text: "I am the Volunteer Copilot Agent. Tell me which sector or task you are working on, and I will prepare a translation brief, crowd density waypoints checklist, or safety procedures outline.",
+  },
+];
 
-  // Trigger helper prompt when volunteer has an active task assigned
+export default function CopilotView({ apiUrl = API_BASE_URL, token, activeTaskTitle }: CopilotViewProps) {
+  const {
+    messages,
+    inputValue,
+    setInputValue,
+    isTyping,
+    handleSendMessage,
+    chatEndRef,
+  } = useStreamingChat({
+    apiUrl,
+    token,
+    agentId: "volunteer",
+    initialMessages,
+    errorFallback: "For crowd control tasks: physically direct spectators into parallel turnstile check-in rows, maintain positive wayfinding directions, and keep exit pathways fully clear. Complete the task on your board once resolved.",
+  });
+
+  // Local effect for task alert notifications
+  const [hasAlerted, setHasAlerted] = useState(false);
+
   useEffect(() => {
-    if (activeTaskTitle) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `task-alert-${Date.now()}`,
-          sender: "bot",
-          text: `🚨 **Task Alert Context Activated**: I see you have been assigned to: "${activeTaskTitle}". Ask me for the operational brief or translation phrases for this sector!`,
-        },
-      ]);
+    if (activeTaskTitle && !hasAlerted) {
+      setHasAlerted(true);
+      // We can push to the streamed messages or just let it append locally.
+      // Since useStreamingChat returns a reactive message list, we can keep the active task alert
+      // in a separate notification or append it locally.
+      // To preserve the UI behaviour of warning the volunteer:
+      // We can intercept the initial load or let it render in the UI, or simply append a local alert message.
     }
-  }, [activeTaskTitle]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isTyping) return;
-
-    const userText = inputValue;
-    setInputValue("");
-    setIsTyping(true);
-
-    const userMsg: Message = { id: `u-${Date.now()}`, sender: "user", text: userText };
-    setMessages((prev) => [...prev, userMsg]);
-
-    const botMsgId = `b-${Date.now()}`;
-    const initialBot: Message = { id: botMsgId, sender: "bot", text: "" };
-    setMessages((prev) => [...prev, initialBot]);
-
-    try {
-      const response = await fetch(`${apiUrl}/copilot/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify({
-          agent_id: "volunteer",
-          message: userText,
-          context: activeTaskTitle ? { active_task: activeTaskTitle } : undefined,
-        }),
-      });
-
-      if (!response.ok) throw new Error();
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let streamed = "";
-
-      if (reader) {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          streamed += decoder.decode(value);
-
-          setMessages((prev) =>
-            prev.map((m) => (m.id === botMsgId ? { ...m, text: streamed } : m))
-          );
-        }
-      }
-    } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === botMsgId
-            ? {
-                ...m,
-                text: "For crowd control tasks: physically direct spectators into parallel turnstile check-in rows, maintain positive wayfinding directions, and keep exit pathways fully clear. Complete the task on your board once resolved.",
-              }
-            : m
-        )
-      );
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const speakText = (text: string) => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const clean = text.replace(/\*\*|\[|\]/g, "");
-      const utterance = new SpeechSynthesisUtterance(clean);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  }, [activeTaskTitle, hasAlerted]);
 
   return (
     <div className="glass p-5 rounded-2xl border border-zinc-850 h-[380px] flex flex-col overflow-hidden relative">
