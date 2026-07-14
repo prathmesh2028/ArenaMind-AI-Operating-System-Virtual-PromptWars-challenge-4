@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import { Shield, BrainCircuit, Users, Heart, Zap, Truck, Check } from "lucide-react";
 import { Decision } from "../../types/stadium";

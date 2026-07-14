@@ -81,7 +81,7 @@ export default function ReplayEngine() {
         });
 
         if (res.ok) {
-          const data = await res.json();
+          await res.json();
           buildTimelineFrames();
         }
       } catch (err) {

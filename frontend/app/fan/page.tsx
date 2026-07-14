@@ -21,7 +21,7 @@ export default function FanPortal() {
   // Live data states
   const [parkingLots, setParkingLots] = useState<ParkingItem[]>([]);
   const [transitVehicles, setTransitVehicles] = useState<TransportItem[]>([]);
-  const [sectors, setSectors] = useState<SectorData[]>([]);
+  const [_sectors, setSectors] = useState<SectorData[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   // Flash banner notification popup

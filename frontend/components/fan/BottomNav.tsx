@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-unused-vars */
 import React from "react";
 import { Compass, Utensils, MessageSquare, AlertOctagon } from "lucide-react";
 
