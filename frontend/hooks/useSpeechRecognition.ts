@@ -34,7 +34,7 @@ export function useSpeechRecognition({
   lang = "en-US",
 }: UseSpeechRecognitionOptions): UseSpeechRecognitionResult {
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any | null>(null);
   const onResultRef = useRef(onResult);
 
   // Sync callback ref to prevent stale closures
@@ -46,9 +46,9 @@ export function useSpeechRecognition({
     if (typeof window === "undefined") return;
 
     const SpeechRecognitionCtor =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition })
+      (window as unknown as { SpeechRecognition?: any })
         .SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition })
+      (window as unknown as { webkitSpeechRecognition?: any })
         .webkitSpeechRecognition;
 
     if (!SpeechRecognitionCtor) return;
@@ -61,12 +61,12 @@ export function useSpeechRecognition({
     recog.onstart = () => setIsListening(true);
     recog.onend = () => setIsListening(false);
 
-    recog.onresult = (event: SpeechRecognitionEvent) => {
+    recog.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       onResultRef.current(transcript);
     };
 
-    recog.onerror = (err: SpeechRecognitionErrorEvent) => {
+    recog.onerror = (err: any) => {
       console.error("Speech Recognition Error:", err);
       setIsListening(false);
     };

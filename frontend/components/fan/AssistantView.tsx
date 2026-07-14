@@ -33,14 +33,14 @@ export default function AssistantView({ apiUrl = API_BASE_URL, token }: Assistan
   const [accTyping, setAccTyping] = useState(false);
 
   // Web Speech API refs
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any | null>(null);
 
   useEffect(() => {
     // Initialize Web Speech Recognition
     if (typeof window !== "undefined") {
       const SpeechRecognitionCtor =
-        (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ??
-        (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+        (window as unknown as { SpeechRecognition?: any }).SpeechRecognition ??
+        (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
       if (SpeechRecognitionCtor) {
         const recog = new SpeechRecognitionCtor();
         recog.continuous = false;
@@ -53,13 +53,13 @@ export default function AssistantView({ apiUrl = API_BASE_URL, token }: Assistan
           setVoiceQuery("Listening...");
         };
 
-        recog.onresult = async (event: SpeechRecognitionEvent) => {
+        recog.onresult = async (event: any) => {
           const transcript = event.results[0][0].transcript;
           setVoiceQuery(`"${transcript}"`);
           await processVoiceCommand(transcript);
         };
 
-        recog.onerror = (err: SpeechRecognitionErrorEvent) => {
+        recog.onerror = (err: any) => {
           console.error("Speech Recognition Error:", err);
           setIsListening(false);
           setAudioPulsing(false);

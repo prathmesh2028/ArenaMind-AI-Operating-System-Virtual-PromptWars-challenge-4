@@ -113,7 +113,7 @@ export default function OperationsDashboard() {
         setSectors(initialSectors);
 
         const baseTimestamp = new Date().toISOString();
-        const initialCrowdHistory = [
+        const initialCrowdHistory: { timestamp: string; [sector: string]: any }[] = [
           {
             timestamp: baseTimestamp,
             ...initialSectors.reduce<Record<string, number>>((acc, s) => {
@@ -124,7 +124,7 @@ export default function OperationsDashboard() {
         ];
         setCrowdHistory(initialCrowdHistory);
 
-        const initialEnergyHistory = [
+        const initialEnergyHistory: { timestamp: string; active_power: number; solar_offset: number }[] = [
           {
             timestamp: baseTimestamp,
             active_power: dash.energy.reduce(
