@@ -34,7 +34,7 @@ interface UseStreamingChatResult {
   setInputValue: React.Dispatch<React.SetStateAction<string>>;
   isTyping: boolean;
   handleSendMessage: (e: React.FormEvent) => Promise<void>;
-  chatEndRef: React.RefObject<HTMLDivElement | null>;
+  chatEndRef: React.MutableRefObject<HTMLDivElement | null>;
 }
 
 export function useStreamingChat({
